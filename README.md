@@ -35,6 +35,13 @@ Database là file `backend/data/thebai.db`, tự tạo ở lần chạy đầu.
 
 Chạy kiểm thử: `npm test`
 
+## Deploy lên Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/phuocloctmc1234-source/thien-menh-the-bai)
+
+File `render.yaml` dùng gói **free** (khu vực Singapore). Gói free sẽ ngủ sau khoảng 15 phút không ai chơi
+và **mất database mỗi lần khởi động lại**. Muốn giữ dữ liệu: đổi `plan: starter` và bật phần `disk` trong `render.yaml`.
+
 ## Chạy bằng Docker
 
 ```bash

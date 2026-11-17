@@ -1,0 +1,22 @@
+# Cấu hình deploy Render (Blueprint)
+# Gói free: miễn phí, nhưng server ngủ khi không ai chơi và DATABASE BỊ XÓA mỗi lần
+# server khởi động lại/deploy lại. Muốn giữ dữ liệu: đổi plan thành starter và bỏ dấu #
+# ở phần disk bên dưới.
+services:
+  - type: web
+    name: thien-menh-the-bai
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    healthCheckPath: /api/health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_PATH
+        value: /data/thebai.db
+    # disk:
+    #   name: thebai-data
+    #   mountPath: /data
+    #   sizeGB: 1
