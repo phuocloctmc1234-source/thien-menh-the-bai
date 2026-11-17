@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#120c24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Thiên Mệnh Thẻ Bài</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<div id="app">
+  <!-- MENU -->
+  <section id="menu" class="screen on">
+    <div class="floatcards" id="floatcards"></div>
+    <div class="title">THIÊN MỆNH<br>THẺ BÀI</div>
+    <div class="subtitle">Chọn anh hùng, xây dựng bộ bài, vượt qua ba vùng đất và đánh bại Ma Vương Hư Không.</div>
+    <div class="menu-btns">
+      <button class="btn" id="btnContinue" style="display:none">▶️ Tiếp tục</button>
+      <button class="btn" id="btnStart">⚔️ Bắt đầu hành trình</button>
+      <button class="btn ghost" id="btnRank">🏆 Bảng xếp hạng</button>
+      <button class="btn ghost" id="btnHelp">📖 Hướng dẫn</button>
+      <button class="btn ghost" id="btnSound">🔊 Âm thanh: Bật</button>
+    </div>
+    <div class="account" id="account"></div>
+  </section>
+  <!-- HERO SELECT -->
+  <section id="heroSel" class="screen">
+    <h2>Chọn anh hùng</h2>
+    <div class="heroes" id="heroes"></div>
+    <button class="btn ghost" id="btnBack">← Quay lại</button>
+  </section>
+  <!-- MAP -->
+  <section id="map" class="screen">
+    <div class="topbar" data-top></div>
+    <div class="mapwrap" id="mapwrap">
+      <div class="acthdr" id="acthdr"></div>
+      <div class="legend">⚔️ Chiến đấu · 👹 Tinh anh · 🔥 Lửa trại · 🛒 Cửa hàng · ❓ Sự kiện · 💎 Kho báu</div>
+      <div class="mapgrid" id="mapgrid"></div>
+    </div>
+  </section>
+  <!-- BATTLE -->
+  <section id="battle" class="screen">
+    <div class="topbar" data-top></div>
+    <div id="arena" class="act1">
+      <div id="heroSide"></div>
+      <div id="enemySide"></div>
+    </div>
+    <div id="ctrl">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="energy" id="energy">3/3</div>
+        <button class="pile" id="drawPile">🂠 0</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="pile" id="discPile">♻️ 0</button>
+        <button class="btn" id="endBtn">Kết thúc lượt</button>
+      </div>
+    </div>
+    <div id="hand"></div>
+  </section>
+  <!-- GENERIC PANEL SCREEN -->
+  <section id="panel" class="screen">
+    <div class="topbar" data-top></div>
+    <div class="panel" id="panelBody"></div>
+  </section>
+</div>
+<canvas id="fx"></canvas>
+<div id="floaters"></div>
+<div id="modal"></div>
+<div id="toast"></div>
+<div id="banner"></div>
+<script>window.API_BASE = window.API_BASE || "";</script>
+<script src="js/fx.js"></script>
+<script src="js/data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

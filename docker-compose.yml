@@ -1,0 +1,10 @@
+services:
+  thebai:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    ports: ["3000:3000"]
+    environment:
+      JWT_SECRET: "doi-chuoi-nay-thanh-chuoi-bi-mat-dai-ngau-nhien"
+    volumes: ["thebai-data:/data"]
+    restart: unless-stopped
+volumes:
+  thebai-data:
