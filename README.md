@@ -21,7 +21,7 @@ thebai/
 └── docker-compose.yml
 ```
 
-## Chạy trên máy (cần Node.js 18 trở lên)
+## Chạy trên máy (cần Node.js 22 trở lên)
 
 ```bash
 cd backend
