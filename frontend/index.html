@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#120c24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Thiên Mệnh Thẻ Bài</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<div id="app">
+  <!-- TRANG CHỦ -->
+  <section id="menu" class="screen on">
+    <div class="hwrap" id="hwrap" data-tab="home">
+      <header class="hhead">
+        <button class="avatar" id="hAvatar" aria-label="Nhân vật"><span class="hav" id="hAv">❔</span><span class="hlvl" id="hLvl">1</span><span class="hxp"><i id="hXp"></i></span></button>
+        <div class="cur"><span class="ci">🪙</span><b id="hCoins">0</b></div>
+        <div class="cur"><span class="ci">💠</span><b id="hGems">0</b></div>
+        <button class="hset" id="btnSettings" aria-label="Cài đặt">⚙️</button>
+      </header>
+      <div class="hside"><button class="sidebtn" id="btnHelp"><span>📖</span><small>Hướng dẫn</small></button></div>
+      <main class="hmain">
+        <div class="isltitle">
+          <button class="islnav" id="islPrev" aria-label="Màn trước">◀</button>
+          <div><h2 id="islName">Màn 1</h2><div class="islsub" id="islSub"></div></div>
+          <button class="islnav" id="islNext" aria-label="Màn sau">▶</button>
+        </div>
+        <div class="island" id="island"></div>
+        <div class="record">Kỷ lục: <b id="hRec">1-0</b></div>
+        <div class="hchests" id="hChests"></div>
+        <div class="hbtns">
+          <button class="newadv" id="btnStart">Phiêu lưu mới!</button>
+          <button class="contbtn" id="btnContinue" style="display:none">▶ Tiếp tục</button>
+        </div>
+      </main>
+      <!-- TAB TRANG BỊ -->
+      <section class="pane pbag" id="paneBag">
+        <div class="bscene">
+          <div class="bcoin"><span class="ci">🪙</span><b id="bCoins">0</b></div>
+          <button class="binfo" id="bInfo" aria-label="Thông tin">ℹ️</button>
+          <div class="bslots bl" id="bSlotsL"></div>
+          <div class="bhero"><span class="bhico" id="bHero">🧙</span><small id="bHeroN"></small></div>
+          <div class="bslots br" id="bSlotsR"></div>
+          <div class="bstats" id="bStats"></div>
+        </div>
+        <div class="bbar"><button class="wbtn" id="bSort">Mặc định ▾</button><button class="wbtn gold" id="bMerge">Hợp nhất!</button></div>
+        <div class="bbody"><div class="bgrid" id="bGrid"></div><div class="bempty" id="bEmpty">Túi đồ trống.</div></div>
+      </section>
+      <!-- TAB CỬA HÀNG -->
+      <section class="pane pshop" id="paneShop"></section>
+      <!-- TAB THẺ BÀI -->
+      <section class="pane pcards" id="paneCards"></section>
+      <nav class="hnav">
+        <button id="navShop"><span class="gl">🏪</span><small>Cửa hàng</small></button>
+        <button id="navBag"><span class="gl">🎒</span><small>Trang bị</small></button>
+        <button id="navHome" class="on"><span class="gl">🌍</span><small>Phiêu lưu</small></button>
+        <button id="navCards"><span class="gl">🎴</span><small>Thẻ bài</small><i class="nbadge" id="navCardsN"></i></button>
+        <button id="navKey"><span class="gl">🧰</span><small>Kho báu</small><i class="nbadge" id="navKeyN"></i></button>
+        <button id="navRank"><span class="gl">🏆</span><small>Xếp hạng</small></button>
+      </nav>
+    </div>
+  </section>
+  <!-- HERO SELECT -->
+  <section id="heroSel" class="screen">
+    <h2>Chọn anh hùng</h2>
+    <p class="heroNote">⚠️ Mỗi tài khoản chỉ có <b>một nhân vật</b>: bạn chọn <b>một lần duy nhất</b> và không thể tạo thêm hay đổi nhân vật sau này.</p>
+    <div class="heroes" id="heroes"></div>
+    <button class="btn ghost" id="btnBack">← Quay lại</button>
+  </section>
+  <!-- MAP -->
+  <section id="map" class="screen">
+    <div class="topbar" data-top></div>
+    <div class="mapwrap" id="mapwrap">
+      <div class="acthdr" id="acthdr"></div>
+      <div class="legend">⚔️ Chiến đấu · 👹 Tinh anh · 🔥 Lửa trại · 🛒 Cửa hàng · ❓ Sự kiện · 💎 Kho báu</div>
+      <div class="mapgrid" id="mapgrid"></div>
+    </div>
+  </section>
+  <!-- BATTLE -->
+  <section id="battle" class="screen">
+    <div class="topbar" data-top></div>
+    <div id="arena" class="act1">
+      <div id="heroSide"></div>
+      <div id="enemySide"></div>
+    </div>
+    <div id="ctrl">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="energy" id="energy">3/3</div>
+        <button class="pile" id="drawPile">🂠 0</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="pile" id="discPile">♻️ 0</button>
+        <button class="btn" id="endBtn">Kết thúc lượt</button>
+      </div>
+    </div>
+    <div id="hand"></div>
+  </section>
+  <!-- GENERIC PANEL SCREEN -->
+  <section id="panel" class="screen">
+    <div class="topbar" data-top></div>
+    <div class="panel" id="panelBody"></div>
+  </section>
+</div>
+<canvas id="fx"></canvas>
+<div id="floaters"></div>
+<div id="modal"></div>
+<div id="isheet"></div>
+<div id="toast"></div>
+<div id="banner"></div>
+<script>window.API_BASE = window.API_BASE || "";</script>
+<script src="js/fx.js"></script>
+<script src="js/data.js"></script>
+<script src="js/cards2.js"></script>
+<script src="js/cards3.js"></script>
+<script src="js/api.js"></script>
+<script src="js/game.js"></script>
+<script src="js/cardsui.js"></script>
+<script src="js/home.js"></script>
+</body>
+</html>
