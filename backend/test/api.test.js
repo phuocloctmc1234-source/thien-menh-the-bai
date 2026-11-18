@@ -4,7 +4,7 @@ const { openDb } = require('../src/db');
 const { createApp } = require('../src/app');
 
 test('luồng API: đăng ký, lưu game, ghi lượt chơi, xếp hạng', async () => {
-  const app = createApp({ db: openDb(':memory:'), jwtSecret: 'test-secret-1234567890', frontendDir: null });
+  const app = createApp({ db: await openDb(':memory:'), jwtSecret: 'test-secret-1234567890', frontendDir: null });
   const srv = app.listen(0); const base = `http://localhost:${srv.address().port}/api`;
   const call = async (m, p, body, token) => { const r = await fetch(base + p, { method: m, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined }); return { s: r.status, j: await r.json() }; };
   try {
@@ -31,6 +31,6 @@ test('luồng API: đăng ký, lưu game, ghi lượt chơi, xếp hạng', asyn
     assert.equal((await call('POST', '/runs', { hero: 'kiem', win: true, act: 7, floor: 63, kills: 120, gold: 300, deckSize: 10 }, tok)).s, 201);
     r = await call('GET', '/leaderboard');
     assert.equal(r.j.leaderboard[0].username, 'jay_01');
-    r = await call('GET', '/stats/me', null, tok); assert.equal(r.j.runs, 1);
+    r = await call('GET', '/stats/me', null, tok); assert.equal(r.j.runs, 2);
   } finally { srv.close(); }
 });

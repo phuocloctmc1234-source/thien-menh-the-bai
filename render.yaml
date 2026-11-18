@@ -1,7 +1,7 @@
 # Cấu hình deploy Render (Blueprint)
-# Gói free: miễn phí, nhưng server ngủ khi không ai chơi và DATABASE BỊ XÓA mỗi lần
-# server khởi động lại/deploy lại. Muốn giữ dữ liệu: đổi plan thành starter và bỏ dấu #
-# ở phần disk bên dưới.
+# Gói free: server ngủ khi không ai chơi và ổ đĩa bị xóa mỗi lần khởi động lại.
+# Để KHÔNG mất tài khoản: dùng database Turso (miễn phí) bằng cách điền TURSO_DATABASE_URL và
+# TURSO_AUTH_TOKEN ở Render > Environment (hai biến bên dưới để sync:false, không lưu trong repo).
 services:
   - type: web
     name: thien-menh-the-bai
@@ -16,6 +16,10 @@ services:
         generateValue: true
       - key: DB_PATH
         value: /data/thebai.db
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
     # disk:
     #   name: thebai-data
     #   mountPath: /data

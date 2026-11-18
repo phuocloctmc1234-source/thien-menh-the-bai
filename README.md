@@ -59,6 +59,17 @@ thebai/
   Ải 💎 Kho báu (chỉ vàng, bảo vật và 50% có chìa khóa), trận thường, tinh anh và cửa hàng **không** có trang bị.
   Khi tung đồ: chọn ô trước (ô đang trống xác suất gấp đôi), rồi độ hiếm, rồi món (ưu tiên món chưa có).
   Ô trống thì tự mặc, ngược lại vào túi 🎒 (có so sánh với món đang mặc; mặc/tháo ngoài trận).
+- **Bộ trang bị** (`frontend/js/sets.js`): 18 bộ (mỗi lớp 6 bộ: 2 Thường, 2 Tốt, 2 Hiếm), mỗi bộ 6 món dành riêng cho lớp (`h`),
+  tổng 108 món cùng rơi theo độ hiếm như trang bị thường. Mặc đủ **2 / 4 / 6** món cùng bộ để mở thưởng (cộng dồn): chỉ số
+  (Tấn công/Phòng thủ/Máu), Giáp lượt đầu, trạng thái đầu trận cho mình (Sức mạnh, Gai, Hồi xuân, Băng tâm, Kết giới, Kiên cố, Bất động, Hút máu),
+  trạng thái xấu lên kẻ địch (Yếu, Dễ vỡ), thêm Năng lượng / thẻ rút ở lượt đầu. Xem bảng bộ ở nút 🔸 Bộ (tab Trang bị) hoặc trong 🎒 khi đang chơi.
+- **Cuộn cường hóa ⬆️** (`frontend/js/upgrade.js`): mỗi Ô trang bị có 1 loại cuộn riêng (6 loại). Cấp cường hóa gắn với **ô** (đổi trang bị vẫn giữ cấp),
+  tối đa +10, mỗi cấp cộng Tấn công/Phòng thủ/Máu cho ô đang mặc (`UPG_TOTAL`), nâng cấp tốn cuộn + xu (`UPG_COST`), không thất bại. Nâng ở tab Trang bị → ⬆️ Cường hóa.
+  Cuộn rơi từ rương Kho Báu (+1), trùm (2), tinh anh (35%), trận thường (8%), rương nhiệm vụ hằng ngày, quà sưu tập thẻ, và bán ở Cửa hàng (ngẫu nhiên).
+- **Nhiệm vụ hằng ngày 🎯** (`frontend/js/daily.js`): mỗi ngày 9 nhiệm vụ (3 dễ 10đ · 3 vừa 15đ · 3 khó 25đ = 150đ) nhưng **điểm năng động ⚡ tối đa 100**:
+  người chơi tự chọn việc hợp mình, đủ 100 điểm thì các nhiệm vụ còn lại bị khóa. Chọn theo ngày từ 15 mẫu (hạ quái, thắng trận, tinh anh, trùm, trận không mất Máu, dùng thẻ, mở rương, mặc đồ...). Làm xong
+  tự cộng điểm; đạt mốc 20/40/60/80/100 thì nhận rương quà (xu, ngọc, chìa khóa, chìa khóa thẻ, trang bị). Nút 🎯 ở trang chủ (có
+  chấm đỏ khi có rương chưa nhận), làm mới lúc 0h giờ máy. Dữ liệu lưu trong hồ sơ (`daily`), không cần đổi backend.
 - **Chìa khóa 🗝️ & Kho Báu 🧰**: sau trận có thể nhặt chìa khóa (`KEY_DROP` trong `data.js`: ải thường 12%,
   tinh anh 25%, 💎 ải Kho báu 50%, trùm 60%). Bấm nút 🗝️ trên thanh trên cùng (ngoài trận) để mở Kho Báu: mỗi chìa khóa mở 1 rương,
   chắc chắn ra 1 trang bị (+30-60 vàng).

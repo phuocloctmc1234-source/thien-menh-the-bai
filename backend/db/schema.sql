@@ -1,5 +1,4 @@
 -- Database của Thiên Mệnh Thẻ Bài (SQLite)
-PRAGMA foreign_keys = ON;
 
 -- Người chơi
 CREATE TABLE IF NOT EXISTS users (

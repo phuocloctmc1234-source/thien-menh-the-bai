@@ -24,7 +24,7 @@ async function refreshMenu(){
     me=sv;meActive=isActive(sv);ensureMeta(me);ensureGear(me);me.keys=me.keys||0;
     if(!meActive){ // hồ sơ: dựng Máu tối đa theo trang bị đang mặc để dùng chung hàm trang bị
       const g=cleanGear(me.equip,me.bag,me.hero);me.equip=g.equip;me.bag=g.bag;me.profile=true;
-      me.maxHp=HEROES[me.hero].hp+gearBonus(me).hp;me.hp=me.maxHp}
+      me.maxHp=baseStats(me.hero,me.xp).hp+gearBonus(me).hp;me.hp=me.maxHp}
   }else{me=null;meActive=false}
   renderHome();
 }
@@ -44,12 +44,14 @@ const ISLE={
   6:[['⛈️',38,0,52],['⚡',16,22,30],['☁️',66,20,34],['🌩️',52,36,32],['☁️',24,42,28],['🌈',78,6,28]],
   7:[['🌌',40,2,52],['🪐',16,22,30],['☄️',70,22,28],['🕳️',50,36,32],['👁️',24,44,26],['✨',80,6,26]],
 };
+const ISL_ART=new Set([1,2,3,4,5,6,7]); // màn đã có ảnh đảo (img/island/aN.webp); màn khác dùng khối CSS + emoji
 function islandHTML(a,open){
+  if(ISL_ART.has(a))return `<img class="isl-img" src="img/island/a${a}.webp" alt="" draggable="false"><span class="isl-badge">${a}</span>`+(open?'':'<img class="isl-lockimg" src="img/island/locked.webp" alt="" draggable="false">');
   return `<div class="isl-shape"><i class="isl-top"></i><i class="isl-front"></i><i class="stream"></i></div>`+
     ISLE[a].map(([ic,x,y,s])=>`<span class="tree" style="left:${x}%;top:${y}%;font-size:${s}px">${ic}</span>`).join('')+
     `<span class="isl-badge">${a}</span>`+(open?'':'<span class="isl-lock">🔒</span>');
 }
-function rewardText(r){return[r.coins&&`🪙 ${r.coins}`,r.gems&&`💠 ${r.gems}`,r.keys&&`🗝️ ${r.keys}`,r.tk&&`🔑 ${r.tk}`,r.eq&&'🎁 trang bị'].filter(Boolean).join(' · ')}
+function rewardText(r){return[r.coins&&`🪙 ${r.coins}`,r.gems&&`💠 ${r.gems}`,r.keys&&`🗝️ ${r.keys}`,r.tk&&`🔑 ${r.tk}`,r.sc&&`📜 ${r.sc}`,r.eq&&'🎁 trang bị'].filter(Boolean).join(' · ')}
 
 /* Thanh trên (ảnh nhân vật, cấp, xu, ngọc) và huy hiệu chìa khóa ở thanh dưới */
 function renderHead(){
@@ -68,7 +70,7 @@ function renderHome(){
   $('#islName').textContent=`Màn ${a}: ${A.n}`;
   $('#islSub').innerHTML=open?`Kết quả tốt nhất (<b>${best}/${ROWS}</b>)`:`🔒 Đánh bại trùm Màn ${a-1} để mở khóa`;
   $('#islPrev').disabled=a<=1;$('#islNext').disabled=a>=MAX_ACT;
-  const isl=$('#island');isl.className='island a'+a+(open?'':' locked');isl.innerHTML=islandHTML(a,open);
+  const isl=$('#island');isl.className='island a'+a+(ISL_ART.has(a)?' art':'')+(open?'':' locked');isl.innerHTML=islandHTML(a,open);
   let rec='1-0';for(let x=MAX_ACT;x>=1;x--)if(has&&bestOf(x)>0){rec=x+'-'+bestOf(x);break}
   $('#hRec').textContent=rec;
   $('#hChests').innerHTML=ACT_CHESTS.map((m,i)=>{
@@ -77,7 +79,7 @@ function renderHome(){
   const bs=$('#btnStart'),bc=$('#btnContinue');
   bs.textContent=has?'Phiêu lưu mới!':'Chọn nhân vật!';bs.disabled=has&&!open;
   bc.style.display=meActive?'':'none';if(meActive)bc.textContent=`▶ Tiếp tục · Màn ${me.act}-${me.floor}`;
-  renderPane();
+  renderPane();if(typeof updateDailyBadge==='function')updateDailyBadge();
 }
 
 /* ---------- Rương thưởng vượt ải lần đầu ---------- */
@@ -132,7 +134,7 @@ const isUpgrade=it=>{const cur=EQUIP[me.equip[it.slot]];return !cur||gearScore(i
 const statShort=it=>['atk','def','hp'].filter(k=>it[k]).map(k=>STAT_N[k].ic+it[k]).join(' ');
 
 function slotTile(s){const it=EQUIP[me.equip[s]];
-  return `<button class="bslot ${it?'r-'+it.r:'empty'}" data-slot="${s}" aria-label="${SLOTS[s].n}"><span class="bsg">${it?it.ic:SLOTS[s].ic}</span>${it?'':`<small>${SLOTS[s].n}</small>`}</button>`}
+  return `<button class="bslot ${it?'r-'+it.r:'empty'}" data-slot="${s}" aria-label="${SLOTS[s].n}"><span class="bsg">${it?it.ic:SLOTS[s].ic}</span>${it?'':`<small>${SLOTS[s].n}</small>`}${upgLevel(me,s)?`<i class="slv">+${upgLevel(me,s)}</i>`:''}</button>`}
 
 /* Số lần hợp nhất có thể: 3 món trong túi cùng ô + cùng độ hiếm (Thường/Tốt) → 1 món cùng ô, độ hiếm kế tiếp */
 function mergePlan(R=me){let n=0;
@@ -162,6 +164,7 @@ function renderBag(){
   const cells=Math.max(12,Math.ceil(items.length/4)*4);
   $('#bGrid').innerHTML=items.map(({i,it})=>`<button class="bitem r-${it.r}" data-bi="${i}"><span class="big">${it.ic}</span><span class="bsl">${SLOTS[it.slot].ic}</span>${isUpgrade(it)?'<i class="bup">▲</i>':''}<small>${statShort(it)}</small></button>`).join('')+'<span class="bcell"></span>'.repeat(cells-items.length);
   $('#bEmpty').style.display=items.length?'none':'';
+  const ur=upgReady(R),ub=$('#bUpgN');if(ub){ub.textContent=ur||'';ub.style.display=ur?'':'none'}
   $('#bSort').textContent=SORTS[bagSort]+' ▾';
   const n=mergePlan(R),mb=$('#bMerge');mb.textContent=n?`Hợp nhất! (${n})`:'Hợp nhất!';mb.classList.toggle('dim',!n);
 }
@@ -172,17 +175,22 @@ function openItem(src,ref){
   if(!hasHero())return;const id=src==='bag'?me.bag[ref]:me.equip[ref],it=EQUIP[id];if(!it)return;
   const stats=Object.keys(STAT_N).filter(k=>it[k]).map(k=>`<li><span>${STAT_N[k].ic} ${STAT_N[k].n}</span><b>+${it[k]}</b></li>`).join('');
   const sh=$('#isheet');
-  sh.innerHTML=`<div class="isc r-${it.r}"><button class="isx" data-sx aria-label="Đóng">✕</button><div class="israr">${RAR_N[it.r]}</div><div class="isic">${it.ic}</div><h4>${it.n}</h4><div class="issub">${SLOTS[it.slot].ic} ${SLOTS[it.slot].n}${it.h?' · '+HEROES[it.h].n:''}</div><ul class="isst">${stats}</ul><div class="iscmp">${src==='bag'?gearDiff(it):'Đang mặc'}</div><div class="isbtn">${src==='bag'?`<button class="wbtn gold" data-sa="eq">Mặc</button><button class="wbtn" data-sa="sell">Bán 🪙 ${SELL_PRICE[it.r]}</button>`:`<button class="wbtn" data-sa="un">Tháo</button>`}</div></div>`;
+  sh.innerHTML=`<div class="isc r-${it.r}"><button class="isx" data-sx aria-label="Đóng">✕</button><div class="israr">${RAR_N[it.r]}</div><div class="isic">${it.ic}</div><h4>${it.n}</h4><div class="issub">${SLOTS[it.slot].ic} ${SLOTS[it.slot].n}${it.h?' · '+HEROES[it.h].n:''}</div>${src==='slot'&&upgLevel(me,it.slot)?`<div class="isset">⬆️ Cường hóa ô ${SLOTS[it.slot].n} +${upgLevel(me,it.slot)}: ${upgTotalText(it.slot,upgLevel(me,it.slot))}</div>`:''}${it.set?`<div class="isset">🔸 ${SETS[it.set].n} · đang mặc ${setCounts(me)[it.set]||0}/6</div>`:''}<ul class="isst">${stats}</ul><div class="iscmp">${src==='bag'?gearDiff(it):'Đang mặc'}</div><div class="isbtn">${src==='bag'?`<button class="wbtn gold" data-sa="eq">Mặc</button><button class="wbtn" data-sa="sell">Bán 🪙 ${SELL_PRICE[it.r]}</button>`:`<button class="wbtn" data-sa="un">Tháo</button>`}</div></div>`;
   sh.classList.add('on');
   sh.onclick=e=>{
     if(e.target===sh||e.target.closest('[data-sx]')){closeSheet();return}
     const a=e.target.closest('[data-sa]');if(!a)return;
-    if(a.dataset.sa==='eq'){equipItem(id);SFX.buff()}
+    if(a.dataset.sa==='eq'){equipItem(id);dailyAdd('equip');SFX.buff()}
     else if(a.dataset.sa==='un')unequipSlot(ref);
     else{if(it.r==='r'&&!confirm(`Bán ${it.n} (Hiếm) lấy ${SELL_PRICE.r} xu?`))return;
       me.bag.splice(ref,1);me.coins+=SELL_PRICE[it.r];SFX.coin();toast(`🪙 +${SELL_PRICE[it.r]} xu`,1200)}
     closeSheet();persistHome();renderHead();renderBag();
   };
+}
+function showSets(){
+  const m=$('#modal');
+  m.innerHTML=`<h3>🔸 Bộ trang bị · ${HEROES[me.hero].n}</h3><p class="muted">Mặc đủ 2 / 4 / 6 món cùng bộ để mở thưởng (cộng dồn). Ô sáng = đang mặc, ô mờ vừa = trong túi.</p><div class="setlist">${setPanelHTML(me,true)}</div><button class="btn" data-close>Đóng</button>`;
+  m.classList.add('on');m.querySelector('[data-close]').onclick=closeModal;
 }
 function showBagInfo(){
   const m=$('#modal');
@@ -194,6 +202,8 @@ function initBag(){
     const sl=e.target.closest('[data-slot]');if(sl){const s=sl.dataset.slot;if(me.equip[s])openItem('slot',s);else toast(`${SLOTS[s].ic} Ô ${SLOTS[s].n} đang trống`,1200);return}
     const bi=e.target.closest('[data-bi]');if(bi){openItem('bag',+bi.dataset.bi)}
   };
+  $('#bUpg').onclick=()=>{if(hasHero()){SFX.card();showUpgrade()}};
+  $('#bSets').onclick=()=>{if(hasHero()){SFX.card();showSets()}};
   $('#bSort').onclick=()=>{bagSort=(bagSort+1)%SORTS.length;SFX.card();renderBag()};
   $('#bMerge').onclick=()=>{
     if(!mergePlan()){toast('Cần 3 trang bị trong túi cùng ô và cùng độ hiếm (Thường hoặc Tốt) để hợp nhất.',2600);return}
@@ -222,7 +232,7 @@ function renderShop(){
   const gbtn=(act,label,cost,ok)=>`<button class="gbtn ${ok?'':'no'}" ${act}>${label}<span>${CUR_IC[cost[0]]} ${cost[1]}</span></button>`;
   const kbtn=id=>{const c=C[id],ok=keys>=c.p;return `<button class="kbtn ${ok?'ok':''}" data-open="${id}:1"><span class="kg">🗝️</span><b>${keys}/${c.p}</b></button>`};
   $('#paneShop').innerHTML=`<div class="rib"><span>Rương Đặc Biệt</span></div>
-    <div class="spc"><button class="sinfo" data-sinfo aria-label="Tỉ lệ">ⓘ</button>
+    <div class="spcard"><button class="sinfo" data-sinfo aria-label="Tỉ lệ">ⓘ</button>
       <div class="spart"><span class="spg">${S.ic}</span><i style="left:8%;top:12%">✦</i><i style="left:70%;top:6%">✧</i><i style="left:84%;top:58%">✦</i></div>
       <div class="spr"><h3>${S.n}</h3><div class="spd">Nhận đồ <b class="g">Tốt</b> hoặc <b class="y">Hiếm</b></div><div class="sppity">⭐ Chắc chắn <b>Hiếm</b> sau <b>${pityLeft('special')}</b> lần mở</div>
         <div class="spb">${gbtn('data-open="special:1"','Mở ×1',['gems',S.p],me.gems>=S.p)}${gbtn('data-open="special:10"','Mở ×10',['gems',S.p10],me.gems>=S.p10)}</div></div></div>
@@ -240,6 +250,7 @@ function buyItem(id){
   me[it.cur]-=it.p;
   if(it.keys){me.keys=(me.keys||0)+it.keys;toast(`🗝️ +${it.keys} chìa khóa (có ${me.keys})`,1600)}
   if(it.tkeys){me.tkeys=(me.tkeys||0)+it.tkeys;toast(`🔑 +${it.tkeys} chìa khóa thẻ (có ${me.tkeys})`,1600)}
+  if(it.sc)toast(grantScrolls(me,it.sc),2400);
   SFX.coin();
   persistHome();renderHead();renderPane();return true;
 }
@@ -276,7 +287,7 @@ function showHeroCard(){
   m.innerHTML=`<h3>${h.ic} ${h.n}</h3><p class="muted">${h.title}</p>
     <div class="eqstats"><span>⭐ Cấp <b>${L.l}</b></span><span>❤️ <b>${me.maxHp}</b></span><span>⚔️ <b>${st.atk}</b></span><span>🛡️ <b>${st.def}</b></span></div>
     <div class="xpline">Kinh nghiệm ${L.cur}/${L.need}<div class="xpbig"><i style="width:${Math.round(L.cur/L.need*100)}%"></i></div></div>
-    <p class="muted">🎒 ${items} trang bị · 🗝️ ${me.keys||0} chìa khóa · 🔑 ${me.tkeys||0} chìa khóa thẻ · 🎴 ${Object.keys(me.owned||{}).length} thẻ đã nhặt/quay · Kỷ lục ${$('#hRec').textContent}</p>
+    <p class="muted">🎒 ${items} trang bị · 🗝️ ${me.keys||0} chìa khóa · 🔑 ${me.tkeys||0} chìa khóa thẻ · 🎴 ${Object.keys(me.owned||{}).length} thẻ đã quay · Kỷ lục ${$('#hRec').textContent}</p>
     <p class="muted">🔒 Mỗi tài khoản chỉ có một nhân vật, không thể đổi hay tạo thêm.</p>
     <button class="btn ghost" data-close>Đóng</button>`;
   m.classList.add('on');m.querySelector('[data-close]').onclick=closeModal;

@@ -11,28 +11,55 @@ const hasRelic=r=>run&&run.relics.includes(r);
 /* ---------- Chỉ số & trang bị ----------
    Sát thương thẻ = Tấn công × dm%, Giáp thẻ = Phòng thủ × b%. Trang bị cộng thẳng vào Tấn công/Phòng thủ/Máu tối đa. */
 const sc=(stat,pct)=>Math.round(stat*pct/100);
+/* Chống khóa choáng vĩnh viễn (Đóng băng). */
+const FREEZE_IMM=1;     // sau khi bị đóng băng, kẻ địch miễn nhiễm đóng băng 1 lượt hành động => luôn hành động ít nhất 1 trong 2 lượt
 const SLOT_KEYS=Object.keys(SLOTS);
-function ensureGear(r){if(!r.equip)r.equip={};if(!r.bag)r.bag=[];
+function ensureGear(r){if(!r.equip)r.equip={};if(!r.bag)r.bag=[];if(!r.upg)r.upg={};if(!r.scrolls)r.scrolls={};
   // bản lưu cũ có 3 ô: ô "phụ kiện" (acc) nay là ô Nhẫn (cùng mã & chỉ số vật phẩm nên Máu tối đa giữ nguyên)
   if(r.equip.acc!==undefined){const a=r.equip.acc;delete r.equip.acc;if(a){if(!r.equip.ring)r.equip.ring=a;else r.bag.push(a)}}
   for(const s of SLOT_KEYS)if(r.equip[s]===undefined)r.equip[s]=null}
 function gearBonus(r=run){const t={atk:0,def:0,hp:0};if(!r)return t;ensureGear(r);
-  for(const s of SLOT_KEYS){const it=EQUIP[r.equip[s]];if(it)for(const k in t)t[k]+=it[k]||0}return t}
+  for(const s of SLOT_KEYS){const it=EQUIP[r.equip[s]];if(it)for(const k in t)t[k]+=it[k]||0}
+  const sb=setBonus(r);for(const k in t)t[k]+=sb[k]; // thưởng bộ trang bị (cộng thẳng vào chỉ số)
+  const ub=upgBonusAll(r);for(const k in t)t[k]+=ub[k]; // thưởng cường hóa theo ô (upgrade.js)
+  return t}
+/* Bộ trang bị: số món đang mặc theo bộ, và tổng thưởng của các mốc 2/4/6 đã đạt (xem sets.js) */
+function setCounts(r){const c={};for(const s of SLOT_KEYS){const it=EQUIP[r.equip&&r.equip[s]];if(it&&it.set)c[it.set]=(c[it.set]||0)+1}return c}
+function setBonus(r=run){const t={atk:0,def:0,hp:0,block:0,e1:0,d1:0,st:{},es:{}};if(!r||!r.equip)return t;
+  const c=setCounts(r);
+  for(const id in c)for(const n of [2,4,6])if(c[id]>=n){const b=SETS[id].b[n];
+    for(const k of ['atk','def','hp','block','e1','d1'])t[k]+=b[k]||0;
+    for(const k in b.st||{})t.st[k]=(t.st[k]||0)+b.st[k];
+    for(const k in b.es||{})t.es[k]=Math.max(t.es[k]||0,b.es[k])}
+  return t}
+/* Bảng thưởng bộ: chỉ các bộ đang mặc (all=false) hoặc toàn bộ các bộ của lớp nhân vật (all=true) */
+function setPanelHTML(R,all){
+  const c=setCounts(R),ids=Object.keys(SETS).filter(id=>all?SETS[id].h===R.hero:c[id]).sort((x,y)=>(c[y]||0)-(c[x]||0)); // bộ đang mặc nhiều nhất lên đầu
+  if(!ids.length)return '<p class="muted">Chưa mặc món nào thuộc bộ trang bị.</p>';
+  const worn=Object.values(R.equip).filter(Boolean),have=new Set([...R.bag,...worn]);
+  return ids.map(id=>{const S=SETS[id],n=c[id]||0;
+    const pcs=S.pieces.map(pid=>`<span class="spc ${worn.includes(pid)?'on':have.has(pid)?'bag':''}" title="${EQUIP[pid].n}">${EQUIP[pid].ic}</span>`).join('');
+    return `<div class="setbox r-${S.r}${n>=6?' full':''}"><div class="seth"><b>${S.n}</b><em>${RAR_N[S.r]}</em><span>${n}/6</span></div><div class="spcs">${pcs}</div><ul>${[2,4,6].map(k=>`<li class="${n>=k?'on':''}"><b>(${k})</b> ${setBonusText(S.b[k])}</li>`).join('')}</ul></div>`}).join('')}
+/* Mỗi cấp tăng chỉ số cơ bản tùy theo lớp nhân vật (cộng dồn, làm tròn xuống) */
+const LEVEL_GROWTH={kiem:{hp:5,atk:.8,def:.3},bang:{hp:3.5,atk:1,def:.2},thach:{hp:6,atk:.5,def:.6}};
+function baseStats(hero,xp){const h=HEROES[hero],g=LEVEL_GROWTH[hero]||{hp:4,atk:.6,def:.4},n=Math.max(0,lvlInfo(xp||0).l-1);
+  return{hp:h.hp+Math.floor(g.hp*n),atk:h.atk+Math.floor(g.atk*n),def:h.def+Math.floor(g.def*n)}}
 function heroStats(r=run){
   if(!r)return{atk:6,def:5,hp:80};
-  const h=HEROES[r.hero],g=gearBonus(r);return{atk:h.atk+g.atk,def:h.def+g.def,hp:r.maxHp,bonus:g}}
-function equipStatsHTML(it){return Object.keys(STAT_N).filter(k=>it[k]).map(k=>`${STAT_N[k].ic} +${it[k]}`).join(' · ')}
+  const h=baseStats(r.hero,r.xp),g=gearBonus(r);return{atk:h.atk+g.atk,def:h.def+g.def,hp:r.maxHp,bonus:g}}
+function equipStatsHTML(it){return Object.keys(STAT_N).filter(k=>it[k]).map(k=>`${STAT_N[k].ic} +${it[k]}`).join(' · ')+(it.set?` · <span class="setchip">🔸 ${SETS[it.set].n}</span>`:'')}
 /* Đối tượng đang thao tác: lượt chơi (run) hoặc, ở trang chủ, hồ sơ nhân vật (me) */
 let me=null;const G=()=>run||me;
 /* Dữ liệu bền vững của tài khoản đi theo cả lượt chơi lẫn hồ sơ: xu, ngọc, kinh nghiệm, tiến độ các màn */
-const META_KEYS=['coins','gems','xp','prog','tkeys','owned','deckCfg']; // tkeys: chìa khóa thẻ 🔑 · owned: thẻ đã sở hữu · deckCfg: bộ bài ban đầu tự xếp
+const META_KEYS=['coins','gems','xp','prog','tkeys','owned','deckCfg','daily','upg','scrolls']; // tkeys: chìa khóa thẻ 🔑 · owned: thẻ đã sở hữu · deckCfg: bộ bài ban đầu tự xếp
 function ensureMeta(r){r.coins=r.coins||0;r.gems=r.gems||0;r.xp=r.xp||0;if(!r.prog)r.prog={};
   const p=r.prog;p.best=p.best||{};p.cleared=p.cleared||{};p.claimed=p.claimed||{};p.pity=p.pity||{};r.tkeys=r.tkeys||0;if(!r.owned)r.owned={};if(r.deckCfg===undefined)r.deckCfg=null;return r}
 function lvlInfo(xp){let l=1,need=50;while(xp>=need){xp-=need;l++;need=50+25*(l-1)}return{l,cur:xp,need}}
-function addXp(n){const R=ensureMeta(G());const a=lvlInfo(R.xp).l;R.xp+=n;const b=lvlInfo(R.xp).l;
-  if(b>a){R.gems+=2*(b-a);SFX.buff();toast(`⭐ Lên cấp <b>${b}</b>! +${2*(b-a)} 💠`,2600)}}
+function addXp(n){const R=ensureMeta(G());const a=lvlInfo(R.xp).l;const hp0=baseStats(R.hero,R.xp).hp;R.xp+=n;const b=lvlInfo(R.xp).l;
+  if(b>a){const dh=baseStats(R.hero,R.xp).hp-hp0;if(R.maxHp!==undefined){R.maxHp+=dh;R.hp+=dh}
+    R.gems+=2*(b-a);SFX.buff();toast(`⭐ Lên cấp <b>${b}</b>! +${2*(b-a)} 💠`,2600)}}
 /* ---------- Bộ bài ban đầu & thẻ sở hữu ----------
-   Thẻ khởi đầu (r:'s') luôn dùng được; các thẻ khác phải từng nhặt trong lượt chơi hoặc quay trúng (R.owned). */
+   Thẻ khởi đầu (r:'s') luôn dùng được; các thẻ khác phải quay trúng ở tab Thẻ bài (R.owned). */
 const isOwned=(R,id)=>!!CARDS[id]&&(CARDS[id].r==='s'||!!(R.owned&&R.owned[id]));
 function deckProblem(ids,R,partial){ // trả về lời giải thích nếu bộ bài không hợp lệ, '' nếu hợp lệ (partial: bỏ qua kiểm tra đủ số thẻ)
   if(!Array.isArray(ids)||ids.length>DECK_SIZE||(!partial&&ids.length!==DECK_SIZE))return `Cần đúng ${DECK_SIZE} thẻ (đang có ${Array.isArray(ids)?ids.length:0}).`;
@@ -46,16 +73,17 @@ function deckProblem(ids,R,partial){ // trả về lời giải thích nếu b�
   if((rar.l||0)>DECK_CAP.l)return `Tối đa ${DECK_CAP.l} thẻ Huyền thoại.`;
   return''}
 const startingDeckIds=R=>{const d=R.deckCfg;return d&&!deckProblem(d,R)?[...d]:[...HEROES[R.hero].deck]};
-function gainCard(c){run.deck.push(c);if(!run.owned)run.owned={};run.owned[c.id]=1}
+function gainCard(c){run.deck.push(c)} // thẻ nhặt trong trận chỉ dùng trong lượt chơi này, KHÔNG vào bộ sưu tập (chỉ Quay thẻ mới sở hữu)
 function recordProgress(act,n){if(!run)return;ensureMeta(run);if(n>(run.prog.best[act]||0))run.prog.best[act]=Math.min(n,ROWS)}
 /* Mặc / tháo trang bị (chỉ ngoài trận). Máu tối đa đổi theo trang bị. */
 function equipItem(id){
   const R=G(),it=EQUIP[id];ensureGear(R);const i=R.bag.indexOf(id);if(!it||i<0)return false;
-  const old=R.equip[it.slot];R.bag.splice(i,1);if(old)unequipSlot(it.slot,true);
-  R.equip[it.slot]=id;if(it.hp){R.maxHp+=it.hp;R.hp+=it.hp}return true}
+  const h0=gearBonus(R).hp,old=R.equip[it.slot];R.bag.splice(i,1);if(old)R.bag.push(old);
+  R.equip[it.slot]=id;shiftMaxHp(R,gearBonus(R).hp-h0);return true}
+function shiftMaxHp(R,d){if(!d)return;R.maxHp+=d;R.hp=d>0?R.hp+d:Math.max(1,Math.min(R.hp,R.maxHp))} // đổi Máu tối đa (món + thưởng bộ)
 function unequipSlot(slot,silent){
   const R=G(),id=R.equip[slot],it=EQUIP[id];if(!it)return;
-  R.equip[slot]=null;R.bag.push(id);if(it.hp){R.maxHp-=it.hp;R.hp=Math.max(1,Math.min(R.hp,R.maxHp))}
+  const h0=gearBonus(R).hp;R.equip[slot]=null;R.bag.push(id);shiftMaxHp(R,gearBonus(R).hp-h0);
   if(!silent)SFX.card()}
 /* Nhận trang bị: ô trống thì mặc luôn, ngược lại cất vào túi. Trả về true nếu đã mặc. */
 function gainEquip(id,quiet){const R=G();ensureGear(R);R.bag.push(id);const it=EQUIP[id];
@@ -91,7 +119,7 @@ function descOf(card,battle,target){
 const nmSize=L=>L>18?' s3':L>15?' s2':L>11?' s1':''; // tên thẻ dài thì thu nhỏ chữ cho vừa tấm bảng tên
 function cardHTML(card,battle,target){
   const def=CARDS[card.id];const cst=V(def,'c',card.up);const base=V(def,'c',false);
-  return `<div class="card t-${def.t} r-${def.r}"><div class="cost ${cst<base?'cheaper':''}">${cst}</div><div class="gem"></div><div class="art">${def.ic}</div><div class="nm ${card.up?'up':''}${nmSize(def.n.length+(card.up?1:0))}">${def.n}${card.up?'+':''}</div><div class="ty">${TYPE_N[def.t]}${def.fxc?' · 1/lượt':''}</div><div class="ds">${descOf(card,battle,target)}</div></div>`;
+  return `<div class="card t-${def.t} r-${def.r}"><div class="cost ${cst<base?'cheaper':''}">${cst}</div><div class="gem"></div><i class="rar"></i><i class="tico tico-${poseOf(def)}"></i><div class="art">${CARD_ART.has(card.id)?`<img class="cimg" src="img/card/${card.id}.webp" alt="" draggable="false">`:def.ic}</div><div class="nm ${card.up?'up':''}${nmSize(def.n.length+(card.up?1:0))}">${def.n}${card.up?'+':''}</div><div class="ds">${descOf(card,battle,target)}</div></div>`;
 }
 
 /* ---------- Thanh trên cùng ---------- */
@@ -127,12 +155,13 @@ function showKeyChest(lines=[]){
   $('#kopen').onclick=()=>{$('#kopen').disabled=true;openKeyChest()};
 }
 function openKeyChest(){
-  const R=G();if(!(R.keys>0))return null;R.keys--;
+  const R=G();if(!(R.keys>0))return null;R.keys--;dailyAdd('chest');
   const rect=$('#kchest').getBoundingClientRect();FX.burst(rect.left+rect.width/2,rect.top+rect.height/2,{n:40,c:['#ffd24a','#fff1a0','#ffffff'],sp:380,life:.8,s:8,g:300,vy:-200});
   const g=ri(30,60);if(run)run.gold+=g;else{ensureMeta(R);R.coins+=g} // trong lượt chơi: vàng; ở trang chủ: xu
   const id=rollEquip('elite');const E=EQUIP[id];const worn=gainEquip(id);
+  const scLine=grantScrolls(R,1); // mỗi rương Kho Báu kèm 1 cuộn cường hóa
   renderTop();persistHome();
-  showKeyChest([`${E.ic} <b>${E.n}</b> <span class="eqr r-${E.r}">${SLOTS[E.slot].n}</span><br>${equipStatsHTML(E)} · ${worn?'đã mặc':'cất vào túi 🎒'}`,run?`💰 +${g} vàng`:`🪙 +${g} xu`]);
+  showKeyChest([`${E.ic} <b>${E.n}</b> <span class="eqr r-${E.r}">${SLOTS[E.slot].n}</span><br>${equipStatsHTML(E)} · ${worn?'đã mặc':'cất vào túi 🎒'}`,run?`💰 +${g} vàng`:`🪙 +${g} xu`,scLine]);
   return id;
 }
 
@@ -148,12 +177,13 @@ function showEquip(){
   m.innerHTML=`<h3>🎒 Trang bị · ${h.ic} ${h.n}</h3>
     <div class="eqstats"><span>❤️ <b>${R.maxHp}</b>${bn('hp')}</span><span>⚔️ Tấn công <b>${st.atk}</b>${bn('atk')}</span><span>🛡️ Phòng thủ <b>${st.def}</b>${bn('def')}</span></div>
     <div class="eqslots">${slotHTML}</div>
+    <h4>Bộ trang bị</h4><div class="setlist">${setPanelHTML(R,false)}</div>
     <h4>Túi đồ (${R.bag.length})</h4><div class="eqbag">${bagHTML||'<p class="muted">Chưa có trang bị nào trong túi.</p>'}</div>
     ${inBattle?'<p class="muted">Không thể đổi trang bị khi đang chiến đấu.</p>':'<p class="muted">Chạm trang bị trong túi để mặc, chạm ô trang bị để tháo.</p>'}
     <button class="btn ghost" data-close>Đóng</button>`;
   m.classList.add('on');m.querySelector('[data-close]').onclick=()=>{m.classList.remove('on');afterModal()};
   m.querySelectorAll('[data-un]').forEach(b=>b.onclick=()=>{unequipSlot(b.dataset.un);persistHome();showEquip();renderTop()});
-  m.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{equipItem(R.bag[+b.dataset.eq]);SFX.buff();persistHome();showEquip();renderTop()});
+  m.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{equipItem(R.bag[+b.dataset.eq]);dailyAdd('equip');SFX.buff();persistHome();showEquip();renderTop()});
 }
 
 /* ---------- Modal chọn thẻ ---------- */
@@ -232,7 +262,11 @@ const H={ // bộ hàm dùng trong thẻ bài
   async atkAll(d,fx){lunge(B.p);const ts=H.alive();await FXR[fx](H.pt(B.p),ts.map(H.pt));for(const t of ts)applyDmg(t,calcDmg(B.p,t,d),B.p);await wait(200)},
   async atkRand(d,fx,hits){for(let i=0;i<hits;i++){const al=H.alive();if(!al.length||B.over)break;await hit(B.p,pick(al),d,fx,i);await wait(90)}await wait(100)},
   async blk(n,fx='shield'){if(n>0)n+=B.p.st.fort||0;bubble(B.p);await FXR[fx](H.pt(B.p));B.p.block+=n;popNum(B.p,'+'+n+' 🛡','blk');renderUnit(B.p)},
-  async st(u,k,n,silent){if(!u||u.dead)return;if(k==='freeze'&&u.boss){if(u.st.freeze>0)return;n=1}if(!silent&&STS_FX[k])await FXR[STS_FX[k]](H.pt(B.p),H.pt(u));else if(silent&&(k==='weak'||k==='vuln'))FX.burst(H.pt(u).x,H.pt(u).y,{n:6,c:'#b45cff',sp:80,life:.5,s:8});
+  async st(u,k,n,silent){if(!u||u.dead)return;
+    if(k==='freeze'&&u!==B.p){ // chống khóa choáng vĩnh viễn: đóng băng tối đa 1 lượt, rồi miễn nhiễm vài lượt hành động
+      if(u.st.freeze>0||u.frzImm>0){popNum(u,'🛡 Kháng băng','info');return}
+      n=u.boss||u.elite?1:Math.min(n,1)}
+    if(!silent&&STS_FX[k])await FXR[STS_FX[k]](H.pt(B.p),H.pt(u));else if(silent&&(k==='weak'||k==='vuln'))FX.burst(H.pt(u).x,H.pt(u).y,{n:6,c:'#b45cff',sp:80,life:.5,s:8});
     u.st[k]=(u.st[k]||0)+n;popNum(u,`${STS[k].ic} ${STS[k].n}${n>1||k!=='keep'&&k!=='energy'?' '+n:''}`,'info');renderUnit(u);if(u===B.p)renderHand()},
   async draw(n){await drawCards(n)},
   // ---- hàm gộp cho bộ thẻ mở rộng (cards2.js): [[trạng thái, số],...] ----
@@ -258,7 +292,7 @@ function applyDmg(t,dmg,src,noThorns){
   if(t.hp<=0&&t!==B.p)die(t);
   return loss;
 }
-function die(e){e.dead=true;e.el.classList.add('dead');const p=H.pt(e);FX.burst(p.x,p.y,{n:30,c:['#fff','#d38bff','#ffcf6a'],sp:300,life:.7,s:9});FX.ring(p.x,p.y,'#fff',10,90,.5,5);run.kills++;setTimeout(()=>e.el&&e.el.classList.add('gone'),650)}
+function die(e){e.dead=true;e.el.classList.add('dead');const p=H.pt(e);FX.burst(p.x,p.y,{n:30,c:['#fff','#d38bff','#ffcf6a'],sp:300,life:.7,s:9});FX.ring(p.x,p.y,'#fff',10,90,.5,5);run.kills++;dailyAdd('kill');setTimeout(()=>e.el&&e.el.classList.add('gone'),650)}
 function flashHit(u){u.el.classList.remove('hit');void u.el.offsetWidth;u.el.classList.add('hit')}
 function lunge(u){u.el.classList.add('lunge');setTimeout(()=>u.el.classList.remove('lunge'),170)}
 function bubble(u){const b=document.createElement('div');b.className='bubble';u.el.querySelector('.body').appendChild(b);setTimeout(()=>b.remove(),650)}
@@ -274,7 +308,7 @@ function setPose(u,pose,ms){const s=u&&u.el&&u.el.querySelector('.himg');if(!s)r
 const poseOf=def=>def.t==='atk'||def.dm!=null?'atk':def.t!=='pow'&&def.b!=null?'def':'fx';
 function unitEl(u,hero){
   const d=document.createElement('div');d.className='unit'+(hero?' hero':'')+(u.boss||u.elite?' big':'');
-  d.innerHTML=`<div class="intent"></div><div class="lw"><div class="body"><span class="sprite">${hero&&run&&HEROES[run.hero].art?heroSprite(run.hero):u.ic}</span></div></div><div class="shadow"></div><div class="bars"><div class="hpbar"><div class="lag"></div><div class="fill"></div><span></span></div><div class="blk"></div></div><div class="sts"></div><div class="ustats"></div>`;
+  d.innerHTML=`<div class="intent"></div><div class="lw"><div class="body"><span class="sprite">${hero&&run&&HEROES[run.hero].art?heroSprite(run.hero):u.art?`<img class="mimg" src="${u.art}" alt="" draggable="false">`:u.ic}</span></div></div><div class="shadow"></div><div class="bars"><div class="hpbar"><div class="lag"></div><div class="fill"></div><span></span></div><div class="blk"></div></div><div class="sts"></div><div class="ustats"></div>`;
   if(hero)d.querySelector('.intent').style.visibility='hidden';
   u.el=d;return d;
 }
@@ -302,12 +336,12 @@ function unitInfo(u){const sts=Object.entries(u.st).filter(([k,v])=>v>0).map(([k
 
 /* Hệ số độ khó thích ứng (xem GEAR_SCALE trong data.js): chưa có trang bị thì cả ba hệ số = 1 */
 function gearScale(){
-  const h=HEROES[run.hero],S=heroStats();const pA=S.atk/h.atk,pD=S.def/h.def,pH=run.maxHp/h.hp;
+  const h=baseStats(run.hero,run.xp),S=heroStats();const pA=S.atk/h.atk,pD=S.def/h.def,pH=run.maxHp/h.hp;
   return{hp:1+GEAR_SCALE.hp*Math.max(0,pA-1),def:1+GEAR_SCALE.def*Math.max(0,pA-1),atk:1+GEAR_SCALE.atk*Math.max(0,(pD+pH)/2-1)}}
 function startBattle(group,kind){
   showScreen('battle');
   const hero=HEROES[run.hero],gs=gearScale();
-  B={kind,turn:0,energy:0,busy:true,over:false,hand:[],disc:[],exh:[],used:new Set(),
+  B={kind,hp0:run.hp,turn:0,energy:0,busy:true,over:false,hand:[],disc:[],exh:[],used:new Set(),
     draw:shuffle(run.deck.map(c=>({...c}))),
     p:{n:hero.n,ic:hero.ic,hp:run.hp,maxHp:run.maxHp,atk:heroStats().atk,def:heroStats().def,block:0,st:{}},
     enemies:group.map(id=>{const d=ENEMIES[id];const hp=Math.round(ri(d.hp[0],d.hp[1])*gs.hp);return{...d,id,hp,maxHp:hp,atk:Math.round(d.atk*gs.atk),def:Math.round(d.def*gs.def),block:0,st:{},hist:[],step:0}})};
@@ -322,6 +356,9 @@ function startBattle(group,kind){
   if(hasRelic('giap'))B.p.block+=8;
   if(hasRelic('bua'))B.p.st.thorns=(B.p.st.thorns||0)+3;
   for(const e of B.enemies){if(hasRelic('tinhthe'))e.st.weak=1;if(hasRelic('mat'))e.st.vuln=1}
+  // thưởng bộ trang bị: trạng thái đầu trận cho mình, trạng thái xấu cho kẻ địch
+  B.set=setBonus(run);for(const k in B.set.st)B.p.st[k]=(B.p.st[k]||0)+B.set.st[k];
+  for(const e of B.enemies)for(const k in B.set.es)e.st[k]=Math.max(e.st[k]||0,B.set.es[k]);
   renderUnit(B.p);B.enemies.forEach(renderUnit);renderHand();updateHUD();
   banner(kind==='boss'?'⚠️ TRÙM XUẤT HIỆN':kind==='elite'?'Kẻ địch tinh anh!':'Chiến đấu!');
   setTimeout(startTurn,900);
@@ -347,13 +384,14 @@ function decay(u){for(const k of ['weak','vuln','mark','sap'])if(u.st[k]>0)u.st[
 async function startTurn(){
   if(B.over)return;B.turn++;const p=B.p;B.used=new Set(); // sang lượt mới: mở khóa lại các thẻ hiệu ứng
   if(!p.st.keep)p.block=0;
-  B.maxE=3+(p.st.energy||0);B.energy=B.maxE+(B.turn===1&&hasRelic('loi')?1:0);
+  if(B.turn===1&&B.set&&B.set.block)p.block+=B.set.block; // Giáp từ thưởng bộ (sau khi dọn Giáp đầu lượt)
+  B.maxE=3+(p.st.energy||0);B.energy=B.maxE+(B.turn===1?(hasRelic('loi')?1:0)+(B.set?B.set.e1:0):0);
   renderUnit(p);
   await tickStart(p);if(checkEnd())return;
   for(const e of H.alive())chooseIntent(e);B.enemies.forEach(renderUnit);
   if(B.turn>1)banner('Lượt của bạn');
   updateHUD();
-  await drawCards(5+(B.turn===1&&hasRelic('dongho')?2:0));
+  await drawCards(5+(B.turn===1?(hasRelic('dongho')?2:0)+(B.set?B.set.d1:0):0));
   B.busy=false;updateHUD();renderHand();
 }
 async function drawCards(n){
@@ -373,7 +411,9 @@ async function endTurn(){
   for(const e of B.enemies){
     if(e.dead||B.over)continue;
     await tickStart(e);if(checkEnd())return;if(e.dead)continue;
-    if(e.st.freeze>0){e.st.freeze--;FXR.iceArmor(H.pt(e));popNum(e,'🧊 Bị đóng băng!','info');renderUnit(e);await wait(550);decay(e);continue}
+    if(e.st.freeze>0){e.st.freeze--;e.frzImm=e.boss||e.elite?FREEZE_IMM:1;if(e.boss&&e.step>0)e.step--; // bị choáng không làm mất chiêu của trùm
+      FXR.iceArmor(H.pt(e));popNum(e,'🧊 Bị đóng băng!','info');renderUnit(e);await wait(550);decay(e);continue}
+    if(e.frzImm>0)e.frzImm--;
     await doMove(e);if(checkEnd())return;
     if(e.st.bleed>0&&!e.dead&&e.intent&&e.intent.d!=null){const n=e.st.bleed;FXR.blood(H.pt(e));await wait(200);e.hp=Math.max(0,e.hp-n);popNum(e,'-'+n,'dmg');flashHit(e);e.st.bleed--;renderUnit(e);if(e.hp<=0)die(e);if(checkEnd())return}
     decay(e);await wait(220);
@@ -493,13 +533,27 @@ async function playCard(uid,target){
   if(def.t==='pow')aura(B.p,'rgba(200,120,255,.8)');
   setPose(B.p,poseOf(def));
   await wait(230);
+  dailyAdd('card');dailyAdd(def.t); // def.t: atk | skill | pow
   const ctx={u:card.up,t:target,D:sc(B.p.atk,V(def,'dm',card.up)),B:sc(B.p.def,V(def,'b',card.up)),X:V(def,'x',card.up),Y:V(def,'y',card.up),card};
   try{await def.play(ctx)}catch(err){console.error(err)}
   setPose(B.p,poseOf(def),380);
   if(def.t!=='pow'){(def.ex?B.exh:B.disc).push(card)}
   B.enemies.forEach(renderUnit);updateHUD();
   if(checkEnd())return;
+  if(def.fxc)await replaceLocked();
   B.busy=false;renderHand();updateHUD();
+}
+/* Các bản cùng loại bị khóa (thẻ hiệu ứng 1/lượt) được đổi bằng thẻ mới rút từ chồng bài; thẻ bị đổi xuống chồng bỏ sau khi đã rút xong */
+async function replaceLocked(){
+  const out=[];
+  for(let pass=0;pass<12;pass++){
+    const lk=B.hand.filter(isLocked);
+    if(!lk.length||B.draw.length+B.disc.length===0)break;
+    B.hand=B.hand.filter(c=>!isLocked(c));out.push(...lk);renderHand();
+    await drawCards(lk.length);
+  }
+  B.disc.push(...out);
+  if(out.length){toast(`🔄 Đổi ${out.length} thẻ bị khóa lấy thẻ mới`,1300);renderHand();updateHUD()}
 }
 function flyCard(card,r,target){
   if(!r)return;const el=document.createElement('div');el.className='flycard';el.innerHTML=cardHTML(card,true);
@@ -531,12 +585,17 @@ function battleWon(){
   const kind=B.kind;
   let heal=0;if(hasRelic('tranghat'))heal+=5;if(hasRelic('ngoc'))heal+=6;
   run.hp=Math.min(run.maxHp,B.p.hp+heal);
+  const flawless=B.p.hp>=B.hp0; // không mất Máu trong trận (nhiệm vụ hằng ngày)
   B=null;addXp(kind==='boss'?30:kind==='elite'?12:5);
+  dailyAdd('battle');if(kind==='elite')dailyAdd('elite');if(kind==='boss')dailyAdd('boss');if(flawless)dailyAdd('flawless');
   let gold=kind==='boss'?ri(90,110):kind==='elite'?ri(30,45):ri(14,24);if(hasRelic('tui'))gold=Math.round(gold*1.5);
   const items=[{t:'gold',v:gold},{t:'card',v:cardChoices(kind)}];
   if(Math.random()<(KEY_DROP[kind]||0))items.push({t:'key',v:1}); // chìa khóa: trùm rơi nhiều hơn ải thường
   if(Math.random()<(TKEY_DROP[kind]||0))items.push({t:'tkey',v:1}); // chìa khóa thẻ 🔑 (quay thẻ ở trang chủ): trùm chắc chắn rơi
   if(kind==='elite'||kind==='boss'){const r=randomRelic();if(r)items.push({t:'relic',v:r})}
+  // cuộn cường hóa: trùm luôn rơi 2 (ô ngẫu nhiên), tinh anh 35%, trận thường 8%
+  if(kind==='boss'){items.push({t:'scroll',v:randomScrollSlot(),n:1},{t:'scroll',v:randomScrollSlot(),n:1})}
+  else if(Math.random()<(UPG_DROP[kind]||0))items.push({t:'scroll',v:randomScrollSlot(),n:1});
   // trang bị chỉ rơi từ trùm cuối màn (EQUIP_DROP); mọi rương đều chắc chắn ra trang bị
   if(kind==='boss'&&Math.random()<EQUIP_DROP)items.push({t:'equip',v:rollEquip('boss')}); // trùm luôn rơi đồ hiếm
   showReward(items,kind,heal);
@@ -550,9 +609,11 @@ function showReward(items,kind,heal){
     if(it.t==='key')b.innerHTML=`🗝️ Nhặt <b>${it.v}</b> chìa khóa<br><small>Dùng để mở 🧰 Kho Báu (bấm 🗝️ trên thanh trên cùng): mỗi rương chắc chắn có trang bị</small>`;
     if(it.t==='tkey')b.innerHTML=`🔑 Nhặt <b>${it.v}</b> chìa khóa thẻ<br><small>Dùng để quay thẻ (cả thẻ Huyền thoại) ở tab Thẻ bài ngoài trang chủ</small>`;
     if(it.t==='equip'){const E=EQUIP[it.v];b.innerHTML=`${E.ic} Trang bị <span class="eqr r-${E.r}">${SLOTS[E.slot].n}</span>: <b>${E.n}</b><br><small>${equipStatsHTML(E)}</small>`}
+    if(it.t==='scroll')b.innerHTML=`${scrollIc(it.v)} <b>${scrollName(it.v)}</b> ×${it.n}<br><small>Cường hóa ô ${SLOTS[it.v].n}: mở ⬆️ Cường hóa ở tab Trang bị (trang chủ)</small>`;
     if(it.t==='relic')b.innerHTML=`${RELICS[it.v].ic} Bảo vật: <b>${RELICS[it.v].n}</b><br><small>${RELICS[it.v].d}</small>`;
     b.onclick=async()=>{
       if(it.t==='gold'){run.gold+=it.v;SFX.coin();b.remove();renderTop()}
+      if(it.t==='scroll'){gainScroll(it.v,it.n,run);SFX.coin();toast(`📜 Nhận ${scrollName(it.v)}`,1400);b.remove()}
       if(it.t==='relic'){gainRelic(it.v);b.remove()}
       if(it.t==='equip'){gainEquip(it.v);b.remove()}
       if(it.t==='tkey'){run.tkeys=(run.tkeys||0)+it.v;SFX.coin();toast(`🔑 Có ${run.tkeys} chìa khóa thẻ`,1400);b.remove();renderTop()}
@@ -641,7 +702,7 @@ function showEvent(){
 /* HỒ SƠ: nhân vật chỉ chọn 1 lần và chìa khóa 🗝️ được giữ lại khi thất bại/thắng.
    Lưu cùng chỗ với bản lưu lượt chơi (localStorage hoặc máy chủ): khi hết lượt chơi, bản lưu được thay bằng
    bản "hồ sơ" {hero, keys, hp:0, deck:[]} nên nút Tiếp tục không hiện, nhưng nhân vật và chìa khóa vẫn còn. */
-function profileRecord(r){ensureMeta(r);return{hero:r.hero,deck:[],hp:0,act:1,floor:0,keys:r.keys||0,equip:r.equip,bag:r.bag,coins:r.coins,gems:r.gems,xp:r.xp,prog:r.prog,tkeys:r.tkeys||0,owned:r.owned||{},deckCfg:r.deckCfg||null,profile:true}}
+function profileRecord(r){ensureMeta(r);return{hero:r.hero,deck:[],hp:0,act:1,floor:0,keys:r.keys||0,equip:r.equip,bag:r.bag,coins:r.coins,gems:r.gems,xp:r.xp,prog:r.prog,tkeys:r.tkeys||0,owned:r.owned||{},deckCfg:r.deckCfg||null,daily:r.daily||null,upg:r.upg||{},scrolls:r.scrolls||{},profile:true}}
 function saveProfile(){return API.save(profileRecord(run))}
 /* Làm sạch trang bị mang từ hồ sơ sang lượt mới: bỏ mã không còn tồn tại / không hợp anh hùng, món sai ô vào túi */
 function cleanGear(equip,bag,hero){
@@ -651,7 +712,7 @@ function cleanGear(equip,bag,hero){
   for(const id of t.bag)if(ok(id))g.bag.push(id);
   return g}
 /* Chỉ số của hồ sơ (nhân vật + trang bị đang mặc) để hiển thị ở menu */
-function profileStats(sv){const h=HEROES[sv.hero],g=cleanGear(sv.equip,sv.bag,sv.hero),b=gearBonus({equip:g.equip,bag:g.bag});
+function profileStats(sv){const h=baseStats(sv.hero,sv.xp),g=cleanGear(sv.equip,sv.bag,sv.hero),b=gearBonus({equip:g.equip,bag:g.bag});
   return{atk:h.atk+b.atk,def:h.def+b.def,hp:h.hp+b.hp,items:Object.values(g.equip).filter(Boolean).length+g.bag.length}}
 function gameOver(win){
   B=null;ensureMeta(run);
@@ -689,7 +750,7 @@ function initMenu(){
     <li><b>Giáp 🛡️:</b> chặn sát thương, mất đi đầu lượt sau.</li>
     <li><b>Ý định:</b> biểu tượng trên đầu kẻ địch cho biết chúng sắp làm gì (⚔️ tấn công, 🛡️ phòng thủ, 💪 tăng sức, 🌀 gây hiệu ứng xấu).</li>
     <li><b>Hiệu ứng:</b> 💪 Sức mạnh, 🥀 Yếu, 💔 Dễ vỡ, ☠️ Độc, 🔥 Thiêu đốt, 🌵 Gai. Chạm vào nhân vật để xem chi tiết.</li>
-    <li><b>Thẻ hiệu ứng (ghi “1/lượt”):</b> thẻ gây hiệu ứng (Yếu, Dễ vỡ, Độc, Sức mạnh, Gai, Kết giới...) mỗi lượt chỉ dùng <b>1 lần</b> cho mỗi loại thẻ; các bản còn lại cùng loại bị khóa 🔒 tới hết lượt, sang lượt mới dùng lại được.</li>
+    <li><b>Thẻ hiệu ứng (1 lần/lượt):</b> thẻ gây hiệu ứng (Yếu, Dễ vỡ, Độc, Sức mạnh, Gai, Kết giới...) mỗi lượt chỉ dùng <b>1 lần</b> cho mỗi loại thẻ; sau khi dùng, các bản còn lại cùng loại trên tay sẽ được <b>đổi bằng thẻ mới</b> rút từ chồng bài.</li>
     <li><b>Tiêu hao:</b> thẻ bị loại khỏi trận sau khi dùng. <b>Năng lực:</b> hiệu lực đến hết trận.</li>
     <li>Thắng trận để nhận vàng, thẻ mới và bảo vật. Nâng cấp thẻ ở 🔥 Lửa trại.</li></ul></div><button class="btn" data-close>Đã hiểu</button>`;m.classList.add('on');m.querySelector('[data-close]').onclick=()=>m.classList.remove('on')};
 }
@@ -700,14 +761,18 @@ function startRun(k,carry={},act=1){
   const h=HEROES[k];const gear=cleanGear(carry.equip,carry.bag,k);
   run={hero:k,hp:h.hp,maxHp:h.hp,gold:99,deck:startingDeckIds({hero:k,deckCfg:carry.deckCfg,owned:carry.owned}).map(id=>mk(id)),relics:[h.relic],act,startAct:act,floor:(act-1)*ROWS,map:genMap(act),pos:null,kills:0,fights:0,phoenix:false,equip:gear.equip,bag:gear.bag,keys:carry.keys||0};
   for(const m of META_KEYS)if(carry[m]!==undefined)run[m]=JSON.parse(JSON.stringify(carry[m]));ensureMeta(run);me=null;
-  run.maxHp=h.hp+gearBonus(run).hp;run.hp=run.maxHp; // trang bị mang theo cộng Máu tối đa ngay từ đầu
+  run.maxHp=baseStats(k,run.xp).hp+gearBonus(run).hp;run.hp=run.maxHp; // cấp độ + trang bị mang theo cộng Máu tối đa ngay từ đầu
   showMap();
 }
 initMenu();
+/* Máy tính: phóng trang chủ theo khung chuẩn 1280x720 để lấp đầy cửa sổ (CSS dùng zoom:var(--z)) */
+function fitDesktop(){const z=matchMedia('(min-width:900px) and (min-height:521px)').matches?Math.max(.8,Math.min(innerWidth/1280,innerHeight/720,3)):1;
+  document.documentElement.style.setProperty('--z',z.toFixed(3))}
+addEventListener('resize',fitDesktop);fitDesktop();
 /* ---------- Tài khoản, tiếp tục, bảng xếp hạng ---------- */
 /* (trang chủ, hồ sơ, cửa hàng: xem js/home.js) */
 const HERO_SHORT={kiem:'🤺',bang:'🧙‍♀️',thach:'🧘‍♂️'};
-function resumeRun(sv){run=sv;me=null;ensureGear(run);ensureMeta(run);run.keys=run.keys||0;for(const c of run.deck)run.owned[c.id]=1;uidN=Math.max(0,...run.deck.map(c=>c.uid||0))+1;showMap()}
+function resumeRun(sv){run=sv;me=null;ensureGear(run);ensureMeta(run);run.keys=run.keys||0;uidN=Math.max(0,...run.deck.map(c=>c.uid||0))+1;showMap()}
 function closeModal(){$('#modal').classList.remove('on')}
 function showLogin(){
   const m=$('#modal');

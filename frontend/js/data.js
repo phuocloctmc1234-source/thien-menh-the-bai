@@ -14,7 +14,7 @@ const STS={
   plate:{n:'Băng tâm',ic:'🏔️',d:'Nhận X Giáp đầu mỗi lượt.'},
   keep:{n:'Bất động',ic:'🗿',d:'Giáp không mất đi khi bắt đầu lượt mới.'},
   // ---- trạng thái bổ sung (bộ thẻ mở rộng theo màn) ----
-  freeze:{n:'Đóng băng',ic:'🧊',d:'Bỏ qua hành động kế tiếp (X lượt). Trùm chỉ bị đóng băng tối đa 1 lượt.'},
+  freeze:{n:'Đóng băng',ic:'🧊',d:'Bỏ qua hành động kế tiếp. Mỗi lần tối đa 1 lượt, sau đó kẻ địch kháng băng 1 lượt.'},
   ward:{n:'Kết giới',ic:'🔮',d:'Chặn hoàn toàn X đòn đánh kế tiếp.'},
   fort:{n:'Kiên cố',ic:'🏰',d:'Mọi Giáp nhận từ thẻ được cộng thêm X.'},
   leech:{n:'Hút máu',ic:'🧛',d:'Hồi X Máu mỗi khi đòn đánh gây sát thương lên Máu.'},
@@ -29,11 +29,13 @@ const STS_FX={str:'buffRed',weak:'debuff',vuln:'debuff',poison:'poisonFx',burn:'
 const POSES={idle:0,def:1,atk:2,fx:3};
 const HERO_ART={
   kiem:{sheet:'img/hero-kiem.webp',face:'img/hero-kiem-face.webp',frames:4,ar:1.0274},
+  bang:{sheet:'img/hero-bang.webp',face:'img/hero-bang-face.webp',frames:4,ar:1.0294},
+  thach:{sheet:'img/hero-thach.webp',face:'img/hero-thach-face.webp',frames:4,ar:1.0294},
 };
 const HEROES={
   kiem:{art:HERO_ART.kiem,n:'Lạc Phong',title:'Kiếm Khách',ic:'🤺',hp:80,atk:6,def:4,col:'#ff6a5a',relic:'huyhieu',desc:'Bậc thầy đao kiếm. Tấn công dồn dập, tích Sức mạnh và kết liễu bằng đòn chí mạng.',deck:['chem','chem','chem','chem','chem','thu','thu','thu','thu','dam']},
-  bang:{n:'Tuyết Lan',title:'Băng Pháp Sư',ic:'🧙‍♀️',hp:68,atk:7,def:3,col:'#5ab8ff',relic:'tinhthe',desc:'Điều khiển băng tuyết và sấm sét. Làm suy yếu kẻ địch, tấn công diện rộng.',deck:['bangtien','bangtien','bangtien','bangtien','bangtien','thu','thu','thu','thu','hankhi']},
-  thach:{n:'Thạch Hổ',title:'Võ Tăng',ic:'🧘‍♂️',hp:88,atk:5,def:6,col:'#5fd068',relic:'tranghat',desc:'Thân cứng như đá. Phòng thủ vững chắc, phản đòn bằng Giáp và Gai.',deck:['quyen','quyen','quyen','quyen','thu','thu','thu','thu','thu','chuong']},
+  bang:{art:HERO_ART.bang,n:'Tuyết Lan',title:'Băng Pháp Sư',ic:'🧙‍♀️',hp:68,atk:7,def:3,col:'#5ab8ff',relic:'tinhthe',desc:'Điều khiển băng tuyết và sấm sét. Làm suy yếu kẻ địch, tấn công diện rộng.',deck:['bangtien','bangtien','bangtien','bangtien','bangtien','thu','thu','thu','thu','hankhi']},
+  thach:{art:HERO_ART.thach,n:'Thạch Hổ',title:'Võ Tăng',ic:'🧘‍♂️',hp:88,atk:5,def:6,col:'#5fd068',relic:'tranghat',desc:'Thân cứng như đá. Phòng thủ vững chắc, phản đòn bằng Giáp và Gai.',deck:['quyen','quyen','quyen','quyen','thu','thu','thu','thu','thu','chuong']},
 };
 
 /* t: atk|skill|pow  r: s(khởi đầu) c u r   tg: one|all|self|rand
@@ -128,6 +130,8 @@ const HOME_SHOP=[
   {id:'k5',ic:'🗝️',n:'Chìa khóa ×5',d:'Gói 5 chìa khóa, rẻ hơn mua lẻ',cur:'gems',p:10,keys:5},
   {id:'t1',ic:'🔑',n:'Chìa khóa thẻ ×1',d:'Quay 1 lần ở tab Thẻ bài',cur:'coins',p:800,tkeys:1},
   {id:'t5',ic:'🔑',n:'Chìa khóa thẻ ×5',d:'Gói 5 chìa khóa thẻ, rẻ hơn',cur:'gems',p:80,tkeys:5},
+  {id:'s1',ic:'<img class="eic" src="img/scroll/rand.webp" alt="">',n:'Cuộn cường hóa ×1',d:'1 cuộn cho một ô trang bị ngẫu nhiên',cur:'coins',p:200,sc:1},
+  {id:'s5',ic:'<img class="eic" src="img/scroll/rand.webp" alt="">',n:'Cuộn cường hóa ×5',d:'5 cuộn (ô ngẫu nhiên), rẻ hơn mua lẻ',cur:'gems',p:25,sc:5},
 ];
 
 /* ---------- BỘ BÀI BAN ĐẦU & QUAY THẺ ----------
@@ -139,6 +143,19 @@ const DECK_COPIES={s:5,c:3,u:2,r:1,l:1}; // số bản tối đa của cùng 1 t
 const DECK_CAP={rl:3,l:2};               // tối đa 3 thẻ Hiếm+Huyền thoại, trong đó tối đa 2 thẻ Huyền thoại
 const RARITY_N={s:'Khởi đầu',c:'Thường',u:'Tốt',r:'Hiếm',l:'Huyền thoại'};
 const GACHA={rates:{l:.03,r:.15,u:.37,c:.45},pity:40,cost1:1,cost10:9,dup:{c:15,u:40,r:120,l:400}}; // pity: đủ 40 lần chắc chắn ra Huyền thoại; dup: xu nhận khi quay trúng thẻ đã có
+/* Quà hoàn thành bộ sưu tập thẻ (tab Thẻ bài → Sưu tập), nhận MỘT lần mỗi bộ (lưu ở prog.claimed['col-<màn>']).
+   Khóa: 1..7 = đủ thẻ của màn đó · 0 = đủ thẻ Huyền thoại 🌈 · all = đủ TOÀN BỘ thẻ của nhân vật. coins/gems/keys/tk/eq giống FIRST_CLEAR. */
+const COL_REWARDS={
+  1:{coins:150,gems:5,keys:1},
+  2:{coins:200,gems:8,keys:1},
+  3:{coins:250,gems:10,keys:2,sc:2},
+  4:{coins:300,gems:12,keys:2,tk:1,sc:2},
+  5:{coins:350,gems:15,keys:2,tk:1,sc:3},
+  6:{coins:400,gems:18,keys:3,tk:2,sc:3},
+  7:{coins:500,gems:25,keys:3,tk:2,sc:4,eq:'boss'},
+  0:{coins:800,gems:40,keys:4,tk:3,sc:6,eq:'boss'},
+  all:{coins:2000,gems:100,keys:8,tk:5,sc:15,eq:'boss'},
+};
 const TKEY_DROP={battle:.03,elite:.2,treasure:.15,boss:1}; // tỉ lệ rơi chìa khóa thẻ
 /* Rương trong tab Cửa hàng. cur: 'keys' (tiêu chìa khóa 🗝️) hoặc 'gems' (tiêu ngọc 💠); p = giá ×1, p10 = giá ×10.
    'common' chính là rương Kho Báu (mở bằng 1 chìa khóa, tỉ lệ độ hiếm như rương Kho Báu).
@@ -202,6 +219,9 @@ const EQUIP={
   giaygio:{n:'Giày Gió',ic:'👟',slot:'boots',r:'u',atk:1,hp:8},
   giayphong:{n:'Giày Phong Vân',ic:'🪽',slot:'boots',r:'r',atk:1,def:2,hp:12},
 };
+/* Ảnh trang bị (img/equip/<id>.webp): đổi ic thành thẻ <img>; món chưa có ảnh vẫn dùng emoji. */
+const EQUIP_ART=new Set('aovai giada giapxich giapthep giaprong nhandong daychuyen vongtay ngocbi buathien monon mulinh musat muxich mulong baotayvai baotayda baotaythep baotayphap baotaythan giaycoc giayda giaysat giaygio giayphong kiemsat kiemthep longhuyet truongmoc truongbang truongloi gangsat gangdong gangkim doandao kiemlua truongdong truongluu gangbac gangvang'.split(' '));
+for(const id in EQUIP)if(EQUIP_ART.has(id))EQUIP[id].ic=`<img class="eic" src="img/equip/${id}.webp" alt="" draggable="false">`;
 const RELIC_POOL=['ngoc','nhan','giap','dongho','loi','bua','tui','tim','mat','long'];
 
 /* Độ khó thích ứng: quái mạnh lên theo trang bị người chơi đang có (trang bị được giữ qua các lượt chơi nên người
@@ -272,6 +292,8 @@ const ENEMIES={
   thanma:{n:'Ma Thần Cổ Đại',ic:'👺',hp:[520,540],atk:20,def:21,elite:1,m:[{d:210,fx:'smash'},{d:70,h:4,fx:'darkBolt'},{s:5,b:250},{weak:3,vuln:3,poison:6,fx:'darkBolt'}]},
   thienmenh:{n:'Thiên Mệnh Chi Chủ',ic:'🌌',hp:[1000,1000],atk:21,def:22,boss:1,m:[{d:80,h:5,fx:'darkBolt'},{d:340,fx:'darkBolt'},{weak:4,vuln:4,poison:8,burn:8,fx:'darkBolt'},{s:6,b:300,heal:30},{d:120,h:3,fx:'zap'}]},
 };
+/* Ảnh quái (img/mon/<id>.webp). Quái chưa có ảnh thì dùng emoji (ic). */
+for(const id of 'nam soi doi xuong nhen golem xavuong hon bocap muc zombie thanlan quy banglong ung macarong phuthuy mat baolong mavuong ranlua bocung thandencat xacuop bocapchua nhansu phaon echdoc casau thuyyeu namkhong troll hydra nuvuongdam thienbinh cungthu tiennu voichien comay thanhlong loithan diman bachtuoc huyetcong acmong nhancau thanma thienmenh'.split(' '))ENEMIES[id].art=`img/mon/${id}.webp`;
 const ACTS={
   1:{n:'Rừng Âm U',easy:[['nam'],['doi','doi'],['xuong']],normal:[['soi','nam'],['nhen','nhen'],['doi','doi','doi'],['xuong','nam'],['soi','doi']],elite:[['golem']],boss:'xavuong'},
   2:{n:'Hang Băng Giá',easy:[['hon'],['thanlan']],normal:[['hon','thanlan'],['bocap','muc'],['zombie','hon'],['muc','thanlan'],['bocap','hon']],elite:[['quy']],boss:'banglong'},

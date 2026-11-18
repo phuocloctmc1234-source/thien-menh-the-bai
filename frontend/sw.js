@@ -1,5 +1,5 @@
 // Cho phép chơi khi mất mạng. Không bao giờ lưu cache cho API.
-const C='thebai-v9',F=['./','./index.html','./css/style.css','./js/fx.js','./js/data.js','./js/cards2.js','./js/cards3.js','./js/api.js','./js/game.js','./js/cardsui.js','./js/home.js','./manifest.json','./icon-192.png','./icon-512.png','./img/card-frame.png','./img/hero-kiem.webp','./img/hero-kiem-face.webp'];
+const C='thebai-v35',F=['./','./index.html','./css/style.css','./css/responsive.css','./js/cardart.js','./js/fx.js','./js/data.js','./js/sets.js','./js/upgrade.js','./js/cards2.js','./js/cards3.js','./js/api.js','./js/game.js','./js/cardsui.js','./js/home.js','./js/daily.js','./manifest.json','./icon-192.png','./icon-512.png','./img/card-frame.png','./img/hero-kiem.webp','./img/hero-kiem-face.webp','./img/hero-bang.webp','./img/hero-bang-face.webp','./img/hero-thach.webp','./img/hero-thach-face.webp'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(F)))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k))))));
 self.addEventListener('fetch',e=>{

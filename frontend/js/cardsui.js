@@ -51,9 +51,10 @@ function renderDeckEd(){
       <div class="dkact"><button class="wbtn" data-dk="reset" ${isDefault?'disabled':''}>↺ Mặc định</button><button class="wbtn gold" data-dk="save" ${prob?'disabled':''}>💾 Lưu bộ bài</button></div>
       <div class="dknote">${me.deckCfg?'Đang dùng bộ bài tự xếp.':'Đang dùng bộ bài mặc định của nhân vật.'} Sang mỗi màn mới, bộ bài được đặt lại về bộ này.${meActive?' (Lượt đang chơi dở sẽ dùng bộ mới từ màn kế tiếp.)':''}</div>
     </div>
-    <div class="dktitle"><b>Thẻ đã sở hữu (${owned.length})</b><small>chạm để thêm</small></div>
+    <div class="dkright"><div class="dktitle"><b>Thẻ đã sở hữu (${owned.length})</b><small>chạm để thêm</small></div>
     <div class="dkpool">${pool}</div>
-    <p class="cdhint">Nhặt thêm thẻ trong lượt chơi hoặc 🎰 quay thẻ để mở rộng bộ sưu tập.</p>`;
+    <p class="cdhint">Chỉ 🎰 quay thẻ mới thêm thẻ vào bộ sưu tập. Thẻ nhặt trong trận chỉ dùng trong lượt chơi đó.</p></div>`;
+  $('#cdBody').classList.add('dkmode');
 }
 function saveDeck(){
   const R=me;if(deckProblem(draft,R))return;
@@ -62,22 +63,45 @@ function saveDeck(){
 }
 
 /* ---------- 📚 Sưu tập ---------- */
+/* ---------- Quà hoàn thành bộ sưu tập ---------- */
+const colCards=(R,act)=>Object.keys(CARDS).filter(k=>CARDS[k].h===R.hero&&CARDS[k].r!=='s'&&(act==='all'?true:act?CARDS[k].a===act:CARDS[k].g));
+const colClaimed=(R,act)=>!!(R.prog&&R.prog.claimed&&R.prog.claimed['col-'+act]);
+const colMissing=(R,act)=>colCards(R,act).filter(k=>!isOwned(R,k)).length;
+const colReady=(R,act)=>colCards(R,act).length>0&&!colMissing(R,act)&&!colClaimed(R,act);
+function colGiftHTML(R,act,label){
+  const rw=COL_REWARDS[act],miss=colMissing(R,act),done=colClaimed(R,act),rdy=colReady(R,act);
+  return `<div class="colgift ${act==='all'?'all':''} ${done?'done':rdy?'ready':''}"><span class="cgl">${label} <b>${rewardText(rw)}</b></span>${done?'<em>Đã nhận ✔</em>':rdy?`<button data-colclaim="${act}">Nhận quà!</button>`:`<em>Còn ${miss} thẻ</em>`}</div>`}
+function claimCollection(act){
+  const R=me;if(!hasHero()||!colReady(R,act))return false;ensureMeta(R);
+  R.prog.claimed['col-'+act]=1;const r=COL_REWARDS[act],lines=[];
+  if(r.coins){R.coins+=r.coins;lines.push(`🪙 +${r.coins} xu`)}
+  if(r.gems){R.gems+=r.gems;lines.push(`💠 +${r.gems} ngọc`)}
+  if(r.keys){R.keys=(R.keys||0)+r.keys;lines.push(`🗝️ +${r.keys} chìa khóa`)}
+  if(r.tk){R.tkeys=(R.tkeys||0)+r.tk;lines.push(`🔑 +${r.tk} chìa khóa thẻ`)}
+  if(r.sc)lines.push(grantScrolls(R,r.sc));
+  if(r.eq){const id=rollEquip(r.eq,'u'),worn=gainEquip(id,true);lines.push(equipLine(EQUIP[id],worn))}
+  persistHome();renderHead();renderCards();
+  rewardModal(act==='all'?'🏆 Sưu tập đủ 100% thẻ!':act===0?'🌈 Đủ bộ thẻ Huyền thoại!':`🏅 Đủ bộ thẻ Màn ${act}`,lines,'🏆');return true}
+
 function renderCollection(){
   const R=me,h=R.hero;
   const list=sortIds(Object.keys(CARDS).filter(k=>CARDS[k].h===h&&CARDS[k].r!=='s'&&(cdAct?CARDS[k].a===cdAct:CARDS[k].g)));
   const have=list.filter(k=>isOwned(R,k)).length;
   const all=Object.keys(CARDS).filter(k=>CARDS[k].h===h&&CARDS[k].r!=='s'),haveAll=all.filter(k=>isOwned(R,k)).length;
-  const chips=[...Array(MAX_ACT)].map((_,i)=>`<button data-act="${i+1}" class="${cdAct===i+1?'on':''}">${i+1}</button>`).join('')+`<button data-act="0" class="leg ${cdAct===0?'on':''}">🌈</button>`;
+  const cst=a=>colClaimed(R,a)?' got':colReady(R,a)?' rdy':'';  // đã nhận quà / có quà chờ nhận (chấm sáng trên nút)
+  const chips=[...Array(MAX_ACT)].map((_,i)=>`<button data-act="${i+1}" class="${cdAct===i+1?'on':''}${cst(i+1)}">${i+1}</button>`).join('')+`<button data-act="0" class="leg ${cdAct===0?'on':''}${cst(0)}">🌈</button>`;
   $('#cdBody').innerHTML=`<div class="coltop"><b>Bộ sưu tập: ${haveAll}/${all.length}</b><small>Chạm thẻ để xem chi tiết</small></div>
+    ${colGiftHTML(R,'all','🏆 Đủ 100% thẻ:')}
     <div class="colchips">${chips}</div>
     <div class="coltitle">${cdAct?`Màn ${cdAct}: ${ACTS[cdAct].n}`:'🌈 Thẻ Huyền thoại · chỉ quay được'} <span>${have}/${list.length}</span></div>
+    ${colGiftHTML(R,cdAct,cdAct?'🎁 Đủ bộ Màn '+cdAct+':':'🎁 Đủ thẻ Huyền thoại:')}
     <div class="colgrid">${list.map(id=>{const own=isOwned(R,id);
       return `<button class="colc ${own?'':'lock'}" data-info="${id}">${miniCard(id,{cw:CW_COL})}${own?'':'<em>🔒</em>'}</button>`}).join('')}</div>
-    <p class="cdhint">${cdAct?'Thẻ của màn này chỉ xuất hiện trong phần thưởng & cửa hàng của màn đó. Nhặt được là sở hữu vĩnh viễn.':'Thẻ Huyền thoại không rơi trong lượt chơi: dùng chìa khóa thẻ 🔑 ở mục Quay thẻ.'}</p>`;
+    <p class="cdhint">${cdAct?'Thẻ của màn này rơi trong trận ở màn đó nhưng chỉ dùng trong lượt chơi; muốn sở hữu vĩnh viễn hãy 🎰 quay thẻ.':'Thẻ Huyền thoại không rơi trong lượt chơi: dùng chìa khóa thẻ 🔑 ở mục Quay thẻ.'}</p>`;
 }
 function showCardInfo(id){
   const d=CARDS[id],own=isOwned(me,id),m=$('#modal');
-  const where=d.g?'🎰 Chỉ có từ Quay thẻ (chìa khóa thẻ 🔑)':`🗺️ Nhặt được ở Màn ${d.a}: ${ACTS[d.a].n}`;
+  const where=d.g?'🎰 Chỉ có từ Quay thẻ (chìa khóa thẻ 🔑)':`🗺️ Rơi ở Màn ${d.a}: ${ACTS[d.a].n} · sở hữu bằng 🎰 Quay thẻ`;
   m.innerHTML=`<h3>${d.ic} ${d.n}</h3><div class="infocards"><div>${miniCard(id,{cw:CW_INFO,cap:false})}<small>Thường</small></div><div>${miniCard(id,{cw:CW_INFO,up:true,cap:false})}<small>Nâng cấp ✨</small></div></div>
     <p class="muted"><b class="rt-${d.r}t">${RARITY_N[d.r]}</b> · ${TYPE_N[d.t]} · ${where}${d.fxc?' · 🔁 Hiệu ứng: mỗi lượt dùng 1 lần':''}</p><p class="muted">${own?'✔ Đã sở hữu':'🔒 Chưa sở hữu'}</p><button class="btn" data-close>Đóng</button>`;
   m.classList.add('on');m.querySelector('[data-close]').onclick=closeModal;
@@ -138,7 +162,7 @@ function showPullResult(res,n){
 let cardTip=null,tipId=null,suppressClick=false;
 function tipHTML(id){
   const d=CARDS[id],own=isOwned(me,id),c=d.c,cost=Array.isArray(c)?(c[0]===c[1]?c[0]:`${c[0]} (nâng cấp ${c[1]})`):c;
-  const where=d.r==='s'?'Thẻ khởi đầu':d.g?'🎰 Chỉ có từ Quay thẻ':`🗺️ Nhặt ở Màn ${d.a}: ${ACTS[d.a].n}`;
+  const where=d.r==='s'?'Thẻ khởi đầu':d.g?'🎰 Chỉ có từ Quay thẻ':`🗺️ Rơi ở Màn ${d.a}: ${ACTS[d.a].n} · sở hữu bằng 🎰 Quay thẻ`;
   return `<div class="tipcard" style="--cw:150px">${cardHTML({id,up:false})}</div>
     <div class="tipinfo"><b class="rt-${d.r}t">${d.ic} ${d.n}</b>
       <span>${RARITY_N[d.r]} · ${TYPE_N[d.t]} · Phí ${cost}${d.ex?' · Tiêu hao':''}</span>${d.fxc?'<span>🔁 Thẻ hiệu ứng: mỗi lượt dùng 1 lần</span>':''}
@@ -177,6 +201,7 @@ function initCards(){
     const add=e.target.closest('[data-add]');if(add){const id=add.dataset.add;if(canAdd(id)){draft.push(id);SFX.card();renderCards()}else toast(draft.length>=DECK_SIZE?`Bộ bài đã đủ ${DECK_SIZE} thẻ. Chạm một thẻ phía trên để bỏ.`:(deckProblem([...draft,id],me,true)||'Không thêm được'),1800);return}
     const rm=e.target.closest('[data-rm]');if(rm){draft.splice(+rm.dataset.rm,1);SFX.card();renderCards();return}
     const dk=e.target.closest('[data-dk]');if(dk){if(dk.dataset.dk==='save')saveDeck();else{draft=[...HEROES[me.hero].deck];SFX.card();renderCards()}return}
+    const cc=e.target.closest('[data-colclaim]');if(cc){const a=cc.dataset.colclaim;claimCollection(a==='all'?'all':+a);return}
     const act=e.target.closest('[data-act]');if(act){cdAct=+act.dataset.act;SFX.card();renderCards();return}
     const info=e.target.closest('[data-info]');if(info){showCardInfo(info.dataset.info);return}
     const pull=e.target.closest('[data-pull]');if(pull){

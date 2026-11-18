@@ -17,22 +17,22 @@ function limiter(max, windowMs) {
 module.exports = (db, auth) => {
   const r = express.Router();
   const lim = limiter(20, 10 * 60 * 1000);
-  const findUser = db.prepare('SELECT * FROM users WHERE username = ?');
-  const insertUser = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
+  const findUser = username => db.get('SELECT * FROM users WHERE username = ?', [username]);
+  const insertUser = (username, hash) => db.run('INSERT INTO users (username, password_hash) VALUES (?, ?)', [username, hash]);
 
-  r.post('/register', lim, (req, res) => {
+  r.post('/register', lim, async (req, res) => {
     const { username, password } = req.body || {};
     if (!USER_RE.test(username || '')) return res.status(400).json({ error: 'Tên đăng nhập 3-20 ký tự, chỉ gồm chữ không dấu, số và _' });
     if (typeof password !== 'string' || password.length < 6 || password.length > 100) return res.status(400).json({ error: 'Mật khẩu cần từ 6 ký tự' });
-    if (findUser.get(username)) return res.status(409).json({ error: 'Tên đăng nhập đã có người dùng' });
-    const info = insertUser.run(username, bcrypt.hashSync(password, 10));
+    if (await findUser(username)) return res.status(409).json({ error: 'Tên đăng nhập đã có người dùng' });
+    const info = await insertUser(username, bcrypt.hashSync(password, 10));
     const user = { id: info.lastInsertRowid, username };
     res.status(201).json({ token: auth.sign(user), user });
   });
 
-  r.post('/login', lim, (req, res) => {
+  r.post('/login', lim, async (req, res) => {
     const { username, password } = req.body || {};
-    const u = findUser.get(username || '');
+    const u = await findUser(String(username || ''));
     if (!u || !bcrypt.compareSync(String(password || ''), u.password_hash)) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
     res.json({ token: auth.sign(u), user: { id: u.id, username: u.username } });
   });

@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/responsive.css">
 
 </head>
 <body>
@@ -27,7 +28,7 @@
         <div class="cur"><span class="ci">💠</span><b id="hGems">0</b></div>
         <button class="hset" id="btnSettings" aria-label="Cài đặt">⚙️</button>
       </header>
-      <div class="hside"><button class="sidebtn" id="btnHelp"><span>📖</span><small>Hướng dẫn</small></button></div>
+      <div class="hside"><button class="sidebtn" id="btnDaily"><span><img class="nic" src="img/nav/quest.webp" alt="" draggable="false"></span><small>Nhiệm vụ</small><i class="dbadge" id="dBadge" style="display:none"></i></button><button class="sidebtn" id="btnHelp"><span><img class="nic" src="img/nav/guide.webp" alt="" draggable="false"></span><small>Hướng dẫn</small></button></div>
       <main class="hmain">
         <div class="isltitle">
           <button class="islnav" id="islPrev" aria-label="Màn trước">◀</button>
@@ -52,7 +53,7 @@
           <div class="bslots br" id="bSlotsR"></div>
           <div class="bstats" id="bStats"></div>
         </div>
-        <div class="bbar"><button class="wbtn" id="bSort">Mặc định ▾</button><button class="wbtn gold" id="bMerge">Hợp nhất!</button></div>
+        <div class="bbar"><button class="wbtn upbtn0" id="bUpg">⬆️ Cường hóa<i class="dbadge" id="bUpgN" style="display:none"></i></button><button class="wbtn" id="bSets">🔸 Bộ</button><button class="wbtn" id="bSort">Mặc định ▾</button><button class="wbtn gold" id="bMerge">Hợp nhất!</button></div>
         <div class="bbody"><div class="bgrid" id="bGrid"></div><div class="bempty" id="bEmpty">Túi đồ trống.</div></div>
       </section>
       <!-- TAB CỬA HÀNG -->
@@ -60,12 +61,12 @@
       <!-- TAB THẺ BÀI -->
       <section class="pane pcards" id="paneCards"></section>
       <nav class="hnav">
-        <button id="navShop"><span class="gl">🏪</span><small>Cửa hàng</small></button>
-        <button id="navBag"><span class="gl">🎒</span><small>Trang bị</small></button>
-        <button id="navHome" class="on"><span class="gl">🌍</span><small>Phiêu lưu</small></button>
-        <button id="navCards"><span class="gl">🎴</span><small>Thẻ bài</small><i class="nbadge" id="navCardsN"></i></button>
-        <button id="navKey"><span class="gl">🧰</span><small>Kho báu</small><i class="nbadge" id="navKeyN"></i></button>
-        <button id="navRank"><span class="gl">🏆</span><small>Xếp hạng</small></button>
+        <button id="navShop"><span class="gl"><img class="nic" src="img/nav/shop.webp" alt="" draggable="false"></span><small>Cửa hàng</small></button>
+        <button id="navBag"><span class="gl"><img class="nic" src="img/nav/bag.webp" alt="" draggable="false"></span><small>Trang bị</small></button>
+        <button id="navHome" class="on"><span class="gl"><img class="nic" src="img/nav/home.webp" alt="" draggable="false"></span><small>Phiêu lưu</small></button>
+        <button id="navCards"><span class="gl"><img class="nic" src="img/nav/cards.webp" alt="" draggable="false"></span><small>Thẻ bài</small><i class="nbadge" id="navCardsN"></i></button>
+        <button id="navKey"><span class="gl"><img class="nic" src="img/nav/chest.webp" alt="" draggable="false"></span><small>Kho báu</small><i class="nbadge" id="navKeyN"></i></button>
+        <button id="navRank"><span class="gl"><img class="nic" src="img/nav/rank.webp" alt="" draggable="false"></span><small>Xếp hạng</small></button>
       </nav>
     </div>
   </section>
@@ -119,11 +120,15 @@
 <script>window.API_BASE = window.API_BASE || "";</script>
 <script src="js/fx.js"></script>
 <script src="js/data.js"></script>
+<script src="js/sets.js"></script>
+<script src="js/upgrade.js"></script>
 <script src="js/cards2.js"></script>
 <script src="js/cards3.js"></script>
 <script src="js/api.js"></script>
+<script src="js/cardart.js"></script>
 <script src="js/game.js"></script>
 <script src="js/cardsui.js"></script>
 <script src="js/home.js"></script>
+<script src="js/daily.js"></script>
 </body>
 </html>

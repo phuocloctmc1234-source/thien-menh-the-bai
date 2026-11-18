@@ -7,6 +7,7 @@ function createApp({ db, jwtSecret, frontendDir, corsOrigin = '*' }) {
   const app = express();
   const auth = makeAuth(jwtSecret);
   app.disable('x-powered-by');
+  app.set('trust proxy', 1); // sau proxy của Render/Docker: lấy IP thật để giới hạn đăng nhập theo từng người, không gộp chung
   app.use(cors({ origin: corsOrigin === '*' ? true : corsOrigin.split(',').map(s => s.trim()) }));
   app.use(express.json({ limit: '300kb' }));
 

@@ -10,12 +10,12 @@ const int = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
 
 module.exports = (db, auth) => {
   const r = express.Router();
-  const insert = db.prepare(`INSERT INTO runs (user_id, hero, win, act, floor, kills, gold, deck_size, score)
-    VALUES (@user_id, @hero, @win, @act, @floor, @kills, @gold, @deck_size, @score)`);
-  const rankOf = db.prepare('SELECT COUNT(*) + 1 AS rank FROM runs WHERE score > ?');
+  const insert = row => db.run(`INSERT INTO runs (user_id, hero, win, act, floor, kills, gold, deck_size, score)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [row.user_id, row.hero, row.win, row.act, row.floor, row.kills, row.gold, row.deck_size, row.score]);
+  const rankOf = score => db.get('SELECT COUNT(*) + 1 AS rank FROM runs WHERE score > ?', [score]);
 
   // Ghi nhận một lượt chơi đã kết thúc
-  r.post('/runs', auth.required, (req, res) => {
+  r.post('/runs', auth.required, async (req, res) => {
     const b = req.body || {};
     const win = b.win ? 1 : 0;
     if (!HEROES.includes(b.hero) || !int(b.act, 1, MAX_ACT) || !int(b.floor, 0, 9 * MAX_ACT + 10) || !int(b.kills, 0, 600) || !int(b.gold, 0, 99999) || !int(b.deckSize, 0, 200))
@@ -23,30 +23,30 @@ module.exports = (db, auth) => {
     if (win && (b.act !== MAX_ACT || b.floor < 9 * MAX_ACT)) return res.status(400).json({ error: 'Kết quả không hợp lệ' });
     const row = { user_id: req.user.id, hero: b.hero, win, act: b.act, floor: b.floor, kills: b.kills, gold: b.gold, deck_size: b.deckSize };
     row.score = calcScore(row);
-    const info = insert.run(row);
-    res.status(201).json({ id: info.lastInsertRowid, score: row.score, rank: rankOf.get(row.score).rank });
+    const info = await insert(row);
+    res.status(201).json({ id: info.lastInsertRowid, score: row.score, rank: (await rankOf(row.score)).rank });
   });
 
   // Lịch sử của tôi
-  r.get('/runs/me', auth.required, (req, res) => {
-    res.json({ runs: db.prepare('SELECT id, hero, win, act, floor, kills, gold, deck_size AS deckSize, score, created_at AS createdAt FROM runs WHERE user_id = ? ORDER BY id DESC LIMIT 20').all(req.user.id) });
+  r.get('/runs/me', auth.required, async (req, res) => {
+    res.json({ runs: await db.all('SELECT id, hero, win, act, floor, kills, gold, deck_size AS deckSize, score, created_at AS createdAt FROM runs WHERE user_id = ? ORDER BY id DESC LIMIT 20', [req.user.id]) });
   });
 
   // Thống kê của tôi
-  r.get('/stats/me', auth.required, (req, res) => {
-    const total = db.prepare('SELECT COUNT(*) AS runs, COALESCE(SUM(win),0) AS wins, COALESCE(MAX(score),0) AS best, COALESCE(SUM(kills),0) AS kills FROM runs WHERE user_id = ?').get(req.user.id);
-    const byHero = db.prepare('SELECT hero, COUNT(*) AS runs, SUM(win) AS wins, MAX(score) AS best FROM runs WHERE user_id = ? GROUP BY hero').all(req.user.id);
+  r.get('/stats/me', auth.required, async (req, res) => {
+    const total = await db.get('SELECT COUNT(*) AS runs, COALESCE(SUM(win),0) AS wins, COALESCE(MAX(score),0) AS best, COALESCE(SUM(kills),0) AS kills FROM runs WHERE user_id = ?', [req.user.id]);
+    const byHero = await db.all('SELECT hero, COUNT(*) AS runs, SUM(win) AS wins, MAX(score) AS best FROM runs WHERE user_id = ? GROUP BY hero', [req.user.id]);
     res.json({ ...total, byHero });
   });
 
   // Bảng xếp hạng: điểm cao nhất của mỗi người chơi
-  r.get('/leaderboard', (req, res) => {
+  r.get('/leaderboard', async (req, res) => {
     const hero = HEROES.includes(req.query.hero) ? req.query.hero : null;
-    const rows = db.prepare(`
+    const rows = await db.all(`
       SELECT u.username, r.hero, r.win, r.act, r.floor, r.score, r.created_at AS createdAt
       FROM runs r JOIN users u ON u.id = r.user_id
-      WHERE r.id = (SELECT r2.id FROM runs r2 WHERE r2.user_id = r.user_id ${hero ? 'AND r2.hero = @hero' : ''} ORDER BY r2.score DESC, r2.id ASC LIMIT 1)
-      ORDER BY r.score DESC LIMIT 20`).all(hero ? { hero } : {});
+      WHERE r.id = (SELECT r2.id FROM runs r2 WHERE r2.user_id = r.user_id ${hero ? 'AND r2.hero = ?' : ''} ORDER BY r2.score DESC, r2.id ASC LIMIT 1)
+      ORDER BY r.score DESC LIMIT 20`, hero ? [hero] : []);
     res.json({ leaderboard: rows });
   });
   return r;
